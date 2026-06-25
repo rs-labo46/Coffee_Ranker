@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.git
+tmp
+node_modules
+frontend/node_modules
+frontend/dist
+vendor
+*.log
+coverage.out
