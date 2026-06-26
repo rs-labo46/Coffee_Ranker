@@ -95,3 +95,10 @@ func (r *GormUserRepository) IncrementTokenVersion(ctx context.Context, userID u
 	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).UpdateColumn("token_version", gorm.Expr("token_version + 1"))
 	return mapRowsAffected(res.RowsAffected, res.Error)
 }
+
+// 指定ユーザーの状態を更新する。
+// 管理者権限の確認はUsecaseで行う。
+func (r *GormUserRepository) UpdateStatus(ctx context.Context, userID uint64, status entity.UserStatus) error {
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Update("status", string(status))
+	return mapRowsAffected(res.RowsAffected, res.Error)
+}
