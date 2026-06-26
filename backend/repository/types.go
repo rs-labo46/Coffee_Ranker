@@ -112,19 +112,6 @@ type TxRepos interface {
 	BatchRun() BatchRunRepository
 }
 
-// ユーザー作成、取得、認証用検索、状態更新。
-// 認証や権限判断はUsecaseの責務であり、Repositoryは永続化。
-type UserRepository interface {
-	Create(ctx context.Context, user *entity.User) error
-	FindByID(ctx context.Context, id uint64) (*entity.User, error)
-	FindByEmail(ctx context.Context, email string) (*entity.User, error)
-	ExistsByEmail(ctx context.Context, email string) (bool, error)
-	UpdateTokenVersion(ctx context.Context, userID uint64, tokenVersion int) error
-	IncrementTokenVersion(ctx context.Context, userID uint64) error
-	UpdateStatus(ctx context.Context, userID uint64, status entity.UserStatus) error
-	List(ctx context.Context, limit int, offset int) ([]*entity.User, error)
-}
-
 // RefreshTokenの作成、取得、使用済み化、失効。
 // 生RefreshTokenは扱わず、Usecaseでhash化された値だけを保存・検索する。
 type RefreshTokenRepository interface {
