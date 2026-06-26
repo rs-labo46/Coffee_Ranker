@@ -74,4 +74,24 @@ func (r *GormUserRepository) FindByEmail(ctx context.Context, email string) (*en
 // Signup前の重複確認で使う。
 func (r *GormUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
+		return false, mapDBError(err)
+	}
+	return existsFromCount(count), nil
+}
+
+// 指定ユーザーのtoken_versionを指定値へ更新。
+// Usecaseが決めた値をDBへ反映する。
+func (r *GormUserRepository) UpdateTokenVersion(ctx context.Context, userID uint64, tokenVersion int) error {
+	//token_versionを指定し更新
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Update("token_version", tokenVersion)
+	return mapRowsAffected(res.RowsAffected, res.Error) //
+}
+
+// 指定ユーザーのtoken_versionを1増やす。
+// 既存AccessTokenを無効化するときに使う。
+func (r *GormUserRepository) IncrementTokenVersion(ctx context.Context, userID uint64) error {
+	//自動更新を避けるためにカラムを指定して＋１する。
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).UpdateColumn("token_version", gorm.Expr("token_version + 1"))
+	return mapRowsAffected(res.RowsAffected, res.Error)
 }
