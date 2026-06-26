@@ -102,3 +102,21 @@ func (r *GormUserRepository) UpdateStatus(ctx context.Context, userID uint64, st
 	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Update("status", string(status))
 	return mapRowsAffected(res.RowsAffected, res.Error)
 }
+
+// ユーザー一覧を新しい順で取得。
+// 管理画面の一覧表示で使う。
+func (r *GormUserRepository) List(ctx context.Context, limit int, offset int) ([]*entity.User, error) {
+	var models []model.User
+	//usersテーブルから、指定位置から指定件数だけ、IDが新しい順に取得して、modelsに詰める。
+	if err := r.db.WithContext(ctx).Order("id DESC").Limit(limit).Offset(offset).Find(&models).Error; err != nil {
+		return nil, mapDBError(err)
+	}
+	//DBから取得した一覧を入れる
+	//1件ずつentityへ変換
+	users := make([]*entity.User, 0, len(models))
+	for i := range models {
+		//DBのmodelをdomain entityへ変換したものをusersに。
+		users = append(users, toUserEntity(&models[i]))
+	}
+	return users, nil
+}
