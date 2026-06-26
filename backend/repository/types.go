@@ -112,20 +112,6 @@ type TxRepos interface {
 	BatchRun() BatchRunRepository
 }
 
-// RefreshTokenの作成、取得、使用済み化、失効。
-// 生RefreshTokenは扱わず、Usecaseでhash化された値だけを保存・検索する。
-type RefreshTokenRepository interface {
-	FindByTokenHash(ctx context.Context, tokenHash string) (*entity.RefreshToken, error)
-	FindByTokenHashWithUser(ctx context.Context, tokenHash string) (*entity.RefreshToken, error)
-	FindByTokenHashWithUserForUpdate(ctx context.Context, tokenHash string) (*entity.RefreshToken, error)
-	MarkUsed(ctx context.Context, id uint64, usedAt time.Time, replacedByTokenID uint64) error
-	Create(ctx context.Context, token *entity.RefreshToken) error
-	Revoke(ctx context.Context, id uint64, revokedAt time.Time) error
-	RevokeFamily(ctx context.Context, familyID string, revokedAt time.Time) error
-	RevokeByUserID(ctx context.Context, userID uint64, revokedAt time.Time) error
-	DeleteExpired(ctx context.Context, now time.Time) (int64, error)
-}
-
 // 未ログインユーザーの一時識別情報を保存・取得。
 // 生GuestSessionキーは扱わず、hash化済みの値だけを保存する。
 type GuestSessionRepository interface {

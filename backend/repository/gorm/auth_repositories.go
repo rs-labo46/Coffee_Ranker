@@ -4,13 +4,21 @@ import (
 	"coffee-ranker/entity"
 	"coffee-ranker/repository/gorm/model"
 	"context"
+	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // usersテーブルのDB操作を担当する。
 // 認証や権限の判断はUsecaseで行う。
 type GormUserRepository struct {
+	baseRepo
+}
+
+// refresh_tokensテーブルのDB操作。
+// 生RefreshTokenではなくhash化済みTokenHashだけを扱う。
+type GormRefreshTokenRepository struct {
 	baseRepo
 }
 
@@ -25,6 +33,20 @@ type UserRepository interface {
 	IncrementTokenVersion(ctx context.Context, userID uint64) error
 	UpdateStatus(ctx context.Context, userID uint64, status entity.UserStatus) error
 	List(ctx context.Context, limit int, offset int) ([]*entity.User, error)
+}
+
+// RefreshTokenの作成、取得、使用済み化、失効。
+// 生RefreshTokenは扱わず、Usecaseでhash化された値だけを保存・検索する。
+type RefreshTokenRepository interface {
+	FindByTokenHash(ctx context.Context, tokenHash string) (*entity.RefreshToken, error)
+	FindByTokenHashWithUser(ctx context.Context, tokenHash string) (*entity.RefreshToken, error)
+	FindByTokenHashWithUserForUpdate(ctx context.Context, tokenHash string) (*entity.RefreshToken, error)
+	MarkUsed(ctx context.Context, id uint64, usedAt time.Time, replacedByTokenID uint64) error
+	Create(ctx context.Context, token *entity.RefreshToken) error
+	Revoke(ctx context.Context, id uint64, revokedAt time.Time) error
+	RevokeFamily(ctx context.Context, familyID string, revokedAt time.Time) error
+	RevokeByUserID(ctx context.Context, userID uint64, revokedAt time.Time) error
+	DeleteExpired(ctx context.Context, now time.Time) (int64, error)
 }
 
 // usersテーブルを操作するRepositoryを生成。
@@ -119,4 +141,41 @@ func (r *GormUserRepository) List(ctx context.Context, limit int, offset int) ([
 		users = append(users, toUserEntity(&models[i]))
 	}
 	return users, nil
+}
+
+// token_hashに一致するRefreshTokenを取得する。
+// Cookieの生TokenはUsecase側でhash化してから渡す。
+func (r *GormRefreshTokenRepository) FindByTokenHash(ctx context.Context, tokenHash string) (*entity.RefreshToken, error) {
+	var m model.RefreshToken
+	if err := r.db.WithContext(ctx).Where("token_hash = ?", tokenHash).First(&m).Error; err != nil {
+		return nil, mapDBError(err)
+	}
+	return toRefreshTokenEntity(&m), nil
+}
+
+// token_hashに一致するRefreshTokenをUser付きで取得する。
+// LogoutやRefresh前の確認で使う。
+func (r *GormRefreshTokenRepository) FindByTokenHashWithUser(ctx context.Context, tokenHash string) (*entity.RefreshToken, error) {
+	var m model.RefreshToken
+	if err := r.db.WithContext(ctx).Preload("User").Where("token_hash = ?", tokenHash).First(&m).Error; err != nil {
+		return nil, mapDBError(err)
+	}
+	return toRefreshTokenEntity(&m), nil
+}
+
+// RefreshTokenを行ロック付きで取得する。
+// 同じRefreshTokenが同時に使われることを防ぐ。
+func (r *GormRefreshTokenRepository) FindByTokenHashWithUserForUpdate(ctx context.Context, tokenHash string) (*entity.RefreshToken, error) {
+	var m model.RefreshToken
+	err := r.db.WithContext(ctx).
+		//Clauses:取得した行を他の処理が同時に更新できないようにする
+		//Pread:RefreshTokenに紐づくUserも一緒に取得
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("User").
+		Where("token_hash = ?", tokenHash).
+		First(&m).Error
+	if err != nil {
+		return nil, mapDBError(err)
+	}
+	return toRefreshTokenEntity(&m), nil
 }
