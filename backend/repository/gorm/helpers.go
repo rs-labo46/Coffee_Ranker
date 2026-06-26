@@ -52,3 +52,9 @@ func applyActor(db *gorm.DB, userID *uint64, guestSessionID *uint64) *gorm.DB {
 	//更新件数は0件ということにする。
 	return db.Where("1 = 0")
 }
+
+// count結果をboolへ変換。
+// COUNTを使った存在確認で、Repositoryが業務判断をせず存在有無だけを返す。
+func existsFromCount(count int64) bool {
+	return count > 0
+}

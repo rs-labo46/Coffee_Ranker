@@ -69,3 +69,9 @@ func (r *GormUserRepository) FindByEmail(ctx context.Context, email string) (*en
 	}
 	return toUserEntity(&m), nil
 }
+
+// 同じemailのユーザーが存在するか確認する。
+// Signup前の重複確認で使う。
+func (r *GormUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	var count int64
+}
