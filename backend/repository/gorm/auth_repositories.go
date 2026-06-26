@@ -59,3 +59,13 @@ func (r *GormUserRepository) FindByID(ctx context.Context, id uint64) (*entity.U
 	// model.Userをentity.Userに変換
 	return toUserEntity(&m), nil
 }
+
+// emailに一致するユーザーを取得する。
+// emailの正規化はUsecaseまたはValidator側で行う。
+func (r *GormUserRepository) FindByEmail(ctx context.Context, email string) (*entity.User, error) {
+	var m model.User
+	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&m).Error; err != nil {
+		return nil, mapDBError(err)
+	}
+	return toUserEntity(&m), nil
+}
