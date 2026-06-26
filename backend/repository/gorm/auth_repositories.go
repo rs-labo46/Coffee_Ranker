@@ -2,6 +2,7 @@ package gormrepo
 
 import (
 	"coffee-ranker/entity"
+	"coffee-ranker/repository/gorm/model"
 	"context"
 
 	"gorm.io/gorm"
@@ -43,4 +44,18 @@ func (r *GormUserRepository) Create(ctx context.Context, user *entity.User) erro
 	//保存後の結果を元のentity.Userに戻す
 	*user = *toUserEntity(m)
 	return nil
+}
+
+// userIDに一致するユーザーを取得する。
+// ユーザー状態の判断はUsecaseで行う。
+func (r *GormUserRepository) FindByID(ctx context.Context, id uint64) (*entity.User, error) {
+	// DBからの取得結果を入れるもの
+	var m model.User
+
+	// DBからUserを1件取得
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error; err != nil {
+		return nil, mapDBError(err)
+	}
+	// model.Userをentity.Userに変換
+	return toUserEntity(&m), nil
 }
