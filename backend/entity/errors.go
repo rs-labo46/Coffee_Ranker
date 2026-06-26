@@ -107,4 +107,13 @@ var (
 
 	// バッチロックの取得に失敗した状態。
 	ErrBatchLockFailed = errors.New("batch lock failed")
+
+	// 対象のレコードが見つからない状態。DBのテーブルを漏らさない。
+	ErrNotFound = errors.New("repository not found")
+
+	// 重複の作成をさせない。
+	ErrConflict = errors.New("repository conflict")
+
+	// アップデートする対象が0件
+	ErrNoRowsAffected = errors.New("repository no rows affected")
 )

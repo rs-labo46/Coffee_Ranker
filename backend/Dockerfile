@@ -1,22 +1,21 @@
-FROM golang:1.26.2-alpine AS build
+# ---------- build ----------
+FROM golang:1.26.2 AS build
 
-WORKDIR /src
-
-COPY go.mod go.sum* ./
+WORKDIR /app
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 
-FROM alpine:3.20
+RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/api ./main.go
 
-WORKDIR /app
-RUN addgroup -S app && adduser -S app -G app
+# ---------- run ----------
+FROM gcr.io/distroless/base-debian12
 
-COPY --from=build /out/api /app/api
-COPY db/migrations /app/db/migrations
+WORKDIR /
 
-USER app
+COPY --from=build /bin/api /api
+
 EXPOSE 8080
 
-CMD ["/app/api"]
+ENTRYPOINT ["/api"]
