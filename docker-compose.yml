@@ -1,3 +1,4 @@
+name: coffee-ranker
 services:
   db:
     image: postgres:16
