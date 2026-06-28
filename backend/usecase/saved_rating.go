@@ -1,12 +1,11 @@
 package usecase
 
 import (
-	"context"
-	"time"
-
 	"coffee-ranker/entity"
 	"coffee-ranker/model"
 	"coffee-ranker/repository"
+	"context"
+	"time"
 )
 
 // Userの保存、保存解除、保存一覧、保存済み確認。
@@ -125,7 +124,7 @@ func (u *SavedItemUsecase) Exists(ctx context.Context, userID uint64, rankTarget
 
 // RankTargetが有効か確認し、Good/Bad評価を保存。
 // 評価本体が成功した後、rating eventをbest effortで記録。
-func (u *RatingUsecase) Rate(ctx context.Context, userID uint64, rankTargetID uint64, placement entity.Placement, pagePath string) (*model.Rating, error) {
+func (u *RatingUsecase) Rate(ctx context.Context, userID uint64, rankTargetID uint64, score entity.RatingScore, placement entity.Placement, pagePath string) (*model.Rating, error) {
 	if pagePath == "" {
 		return nil, entity.ErrInvalidInput
 	}
