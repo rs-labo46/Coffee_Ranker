@@ -130,7 +130,7 @@ func (r *GormContentMetricRepository) ListRanking(ctx context.Context, contentTy
 // 全コンテンツの上位スコア指標を取得。
 func (r *GormContentMetricRepository) ListTopByScore(ctx context.Context, limit int) ([]*model.ContentMetric, error) {
 	var metrics []*model.ContentMetric
-	err := r.db.WithContext(ctx).Preload("RankTarget").Order("score DESC").Order("rank_target_id DESC").Limit(limit).Find(&metrics).Error
+	err := r.db.WithContext(ctx).Preload("RankTarget").Joins("JOIN rank_targets ON rank_targets.id = content_metrics.rank_target_id").Where("rank_targets.is_active = true").Order("content_metrics.score DESC").Order("content_metrics.rank_target_id DESC").Limit(limit).Find(&metrics).Error
 	if err != nil {
 		return nil, mapDBError(err)
 	}
