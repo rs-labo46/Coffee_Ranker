@@ -295,6 +295,9 @@ const (
 
 	// 管理者による手動バッチ実行。
 	AuditActionManualBatchRun AuditAction = "manual_batch_run"
+
+	// 管理者によるRateLimit状態のリセット。
+	AuditActionRateLimitReset AuditAction = "rate_limit_reset"
 )
 
 const (
