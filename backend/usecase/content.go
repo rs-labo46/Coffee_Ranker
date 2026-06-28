@@ -26,31 +26,6 @@ type ArticleUsecase struct {
 	relations repository.BeanArticleRepository
 }
 
-// IDが0でないことを確認。共通で使う
-func requirePositiveID(id uint64) error {
-	if id == 0 {
-		return entity.ErrInvalidInput
-	}
-	return nil
-}
-
-// limitとoffsetをデフォルト値・上限値に合わせて検証。
-func normalizePage(page Page, defaultLimit int, maxLimit int, maxOffset int) (Page, error) {
-	if defaultLimit <= 0 {
-		defaultLimit = 20
-	}
-	if maxLimit <= 0 {
-		maxLimit = 100
-	}
-	if page.Limit == 0 {
-		page.Limit = defaultLimit
-	}
-	if page.Limit < 0 || page.Limit > maxLimit || page.Offset < 0 || page.Offset > maxOffset {
-		return Page{}, entity.ErrInvalidPagination
-	}
-	return page, nil
-}
-
 // Bean表示に必要なRepositoryを受け取るコンストラクタ。
 func NewBeanUsecase(beans repository.BeanRepository, relations repository.BeanArticleRepository) *BeanUsecase {
 	return &BeanUsecase{beans: beans, relations: relations}
@@ -129,7 +104,7 @@ func (u *ArticleUsecase) GetDetailByID(ctx context.Context, id uint64, authentic
 	return article, nil
 }
 
-// Article slugから詳細を取得し、未認証なら詳細取得を制限。
+// Article URLから詳細を取得し、未認証なら詳細取得を制限。
 func (u *ArticleUsecase) GetDetailBySlug(ctx context.Context, slug string, authenticated bool) (*model.Article, error) {
 	if !authenticated {
 		return nil, entity.ErrLoginRequired
@@ -159,4 +134,29 @@ func (u *ArticleUsecase) RelatedBeans(ctx context.Context, articleID uint64, lim
 		return nil, entity.ErrInvalidPagination
 	}
 	return u.relations.ListByArticleID(ctx, articleID, limit)
+}
+
+// IDが0でないことを確認。共通で使う
+func requirePositiveID(id uint64) error {
+	if id == 0 {
+		return entity.ErrInvalidInput
+	}
+	return nil
+}
+
+// limitとoffsetをデフォルト値・上限値に合わせて検証。
+func normalizePage(page Page, defaultLimit int, maxLimit int, maxOffset int) (Page, error) {
+	if defaultLimit <= 0 {
+		defaultLimit = 20
+	}
+	if maxLimit <= 0 {
+		maxLimit = 100
+	}
+	if page.Limit == 0 {
+		page.Limit = defaultLimit
+	}
+	if page.Limit < 0 || page.Limit > maxLimit || page.Offset < 0 || page.Offset > maxOffset {
+		return Page{}, entity.ErrInvalidPagination
+	}
+	return page, nil
 }
