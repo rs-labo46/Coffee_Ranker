@@ -18,7 +18,7 @@ type RankingBatchUsecase struct {
 	runs    repository.IBatchRunRepository
 	locks   repository.IBatchLockRepository
 	audits  repository.IAuditLogRepository
-	tx      repository.TxManager
+	tx      TxManager
 }
 
 // 興味プロフィール用の集計バッチ。
@@ -58,7 +58,7 @@ func NewRankingBatchUsecase(
 	runs repository.IBatchRunRepository,
 	locks repository.IBatchLockRepository,
 	audits repository.IAuditLogRepository,
-	tx repository.TxManager,
+	tx TxManager,
 ) *RankingBatchUsecase {
 	return &RankingBatchUsecase{
 		events:  events,
@@ -147,7 +147,7 @@ func (u *RankingBatchUsecase) Recalculate(ctx context.Context, input BatchInput)
 
 	// 指標更新とBatchRun成功更新は同じTxで扱う。
 	// 片方だけ成功すると「指標は更新済みなのにrunはrunningのまま」などの不整合が起きる。
-	err = u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	err = u.tx.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		if err := tx.ContentMetric().BulkUpsert(ctx, metrics); err != nil {
 			return err
 		}

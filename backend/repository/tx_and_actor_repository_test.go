@@ -12,54 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TxManagerでエラーが返されたとき、DB更新がrollbackされることを確認する。
-// さらに、rollback時に返るエラーが、TxManager側のエラーではなく元の業務エラーのまま返ることを見る。
-func TestTxManager_RollbackKeepsOriginalBusinessError(t *testing.T) {
-	db := newRepositoryTestDB(t)
-	ctx := context.Background()
-
-	// TxManagerを作成する。
-	txManager := NewTxManager(db)
-
-	// transaction内でUserを作成した後、意図的に業務エラーを返す。
-	err := txManager.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
-		user := model.User{
-			Name:         "rollback-user",
-			Email:        "rollback@example.com",
-			PasswordHash: "hashed-password",
-			Role:         entity.UserRoleUser,
-			Status:       entity.UserStatusActive,
-		}
-
-		// transaction内のUserRepositoryでUserを作成する。
-		// この時点ではtransaction中なので、後でrollbackされる可能性がある。
-		if err := tx.User().Create(ctx, &user); err != nil {
-			return err
-		}
-
-		// 意図的に業務エラーを返す。
-		// このエラーによりtransactionはrollbackされる想定。
-		return entity.ErrRefreshTokenExpired
-	})
-
-	// TxManagerから返るエラーが、元の業務エラーのままであることを確認する。
-	// rollbackしたからといって、別のエラーにすり替わらないことを見る。
-	if !errors.Is(err, entity.ErrRefreshTokenExpired) {
-		t.Fatalf("tx error = %v, want ErrRefreshTokenExpired", err)
-	}
-
-	// rollback後に、transaction内で作成したUserがDBに残っていないことを確認する。
-	exists, findErr := NewUserRepository(db).ExistsByEmail(ctx, "rollback@example.com")
-	if findErr != nil {
-		t.Fatalf("exists after rollback: %v", findErr)
-	}
-
-	// rollbackされていれば、Userは存在しない。
-	if exists {
-		t.Fatal("user created inside rolled back transaction still exists")
-	}
-}
-
 // ActionEventRepositoryのactor条件と、最後の検索条件hash取得を確認する。
 // userとguestを正しく分け、actor指定が不正な場合はfail closedで0件になることを見る。
 func TestActionEventRepository_ActorFilterFailClosedAndLastSearchHash(t *testing.T) {

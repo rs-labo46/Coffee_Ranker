@@ -870,11 +870,11 @@ func (f *fakeBatchLockRepo) Extend(ctx context.Context, key string, owner string
 }
 
 type fakeTxManager struct {
-	repos  repository.ITxRepos
+	repos  ITxRepos
 	called bool
 }
 
-func (f *fakeTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context, tx repository.ITxRepos) error) error {
+func (f *fakeTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context, tx ITxRepos) error) error {
 	f.called = true
 	return fn(ctx, f.repos)
 }

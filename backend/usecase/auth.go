@@ -29,7 +29,7 @@ type AuthUsecase struct {
 	users         repository.IUserRepository
 	refreshTokens repository.IRefreshTokenRepository
 	audits        repository.IAuditLogRepository
-	txManager     repository.TxManager
+	txManager     TxManager
 	passwords     PasswordHasher
 	tokens        TokenManager
 	refreshTTL    time.Duration
@@ -105,7 +105,7 @@ func auditLog(actorType entity.AuditActorType, actorUserID *uint64, action entit
 }
 
 // 認証処理に必要なRepository、TxManager、token/password処理の受け取り
-func NewAuthUsecase(users repository.IUserRepository, refreshTokens repository.IRefreshTokenRepository, audits repository.IAuditLogRepository, txManager repository.TxManager, passwords PasswordHasher, tokens TokenManager, refreshTTL time.Duration) *AuthUsecase {
+func NewAuthUsecase(users repository.IUserRepository, refreshTokens repository.IRefreshTokenRepository, audits repository.IAuditLogRepository, txManager TxManager, passwords PasswordHasher, tokens TokenManager, refreshTTL time.Duration) *AuthUsecase {
 	return &AuthUsecase{
 		users:         users,
 		refreshTokens: refreshTokens,
@@ -246,7 +246,7 @@ func (u *AuthUsecase) Refresh(ctx context.Context, refreshToken string, meta Aud
 	var reuseDetected bool
 	var reuseUserID *uint64
 
-	err = u.txManager.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	err = u.txManager.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		// 同じRefreshTokenを二重に使わせないため、対象行をlockして取得。
 		token, err := tx.RefreshToken().FindByTokenHashWithUserForUpdate(ctx, oldHash)
 		if err != nil {
@@ -396,7 +396,7 @@ func (u *AuthUsecase) LogoutAllDevices(ctx context.Context, userID uint64, meta 
 	}
 	now := time.Now()
 	//DB更新をTxでまとめる
-	if err := u.txManager.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	if err := u.txManager.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		//そのUserの全RefreshTokenを失効
 		if err := tx.RefreshToken().RevokeByUserID(ctx, userID, now); err != nil {
 			return err

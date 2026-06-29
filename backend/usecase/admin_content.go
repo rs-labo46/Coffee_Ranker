@@ -14,7 +14,7 @@ import (
 type AdminBeanUsecase struct {
 	beans  repository.IBeanRepository
 	audits repository.IAuditLogRepository
-	tx     repository.TxManager
+	tx     TxManager
 }
 
 // 管理者がArticleを作成・更新・公開・非公開にするUsecase。
@@ -22,7 +22,7 @@ type AdminBeanUsecase struct {
 type AdminArticleUsecase struct {
 	articles repository.IArticleRepository
 	audits   repository.IAuditLogRepository
-	tx       repository.TxManager
+	tx       TxManager
 }
 
 // 管理者がBeanとArticleの関連を管理する。
@@ -32,7 +32,7 @@ type AdminRelationUsecase struct {
 	articles  repository.IArticleRepository
 	relations repository.IBeanArticleRepository
 	audits    repository.IAuditLogRepository
-	tx        repository.TxManager
+	tx        TxManager
 }
 
 // 管理者操作の監査ログに使う情報。
@@ -48,7 +48,7 @@ func NewAdminBeanUsecase(
 	beans repository.IBeanRepository,
 	rankTargets repository.IRankTargetRepository,
 	audits repository.IAuditLogRepository,
-	tx repository.TxManager,
+	tx TxManager,
 ) *AdminBeanUsecase {
 	return &AdminBeanUsecase{
 		beans:  beans,
@@ -63,7 +63,7 @@ func NewAdminArticleUsecase(
 	articles repository.IArticleRepository,
 	rankTargets repository.IRankTargetRepository,
 	audits repository.IAuditLogRepository,
-	tx repository.TxManager,
+	tx TxManager,
 ) *AdminArticleUsecase {
 	return &AdminArticleUsecase{
 		articles: articles,
@@ -78,7 +78,7 @@ func NewAdminRelationUsecase(
 	articles repository.IArticleRepository,
 	relations repository.IBeanArticleRepository,
 	audits repository.IAuditLogRepository,
-	tx repository.TxManager,
+	tx TxManager,
 ) *AdminRelationUsecase {
 	return &AdminRelationUsecase{
 		beans:     beans,
@@ -173,7 +173,7 @@ func (u *AdminBeanUsecase) Publish(ctx context.Context, beanID uint64, meta Admi
 		return entity.ErrRepositoryFailed
 	}
 
-	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		if err := tx.Bean().UpdatePublished(ctx, beanID, true); err != nil {
 			return err
 		}
@@ -215,7 +215,7 @@ func (u *AdminBeanUsecase) Unpublish(ctx context.Context, beanID uint64, meta Ad
 		return entity.ErrRepositoryFailed
 	}
 
-	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		if err := tx.Bean().UpdatePublished(ctx, beanID, false); err != nil {
 			return err
 		}
@@ -317,7 +317,7 @@ func (u *AdminArticleUsecase) Publish(ctx context.Context, articleID uint64, met
 		return entity.ErrRepositoryFailed
 	}
 
-	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		if err := tx.Article().UpdatePublished(ctx, articleID, true); err != nil {
 			return err
 		}
@@ -359,7 +359,7 @@ func (u *AdminArticleUsecase) Unpublish(ctx context.Context, articleID uint64, m
 		return entity.ErrRepositoryFailed
 	}
 
-	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		if err := tx.Article().UpdatePublished(ctx, articleID, false); err != nil {
 			return err
 		}
@@ -506,7 +506,7 @@ func (u *AdminRelationUsecase) ReplaceByBeanID(ctx context.Context, beanID uint6
 		}
 	}
 
-	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
+	if err := u.tx.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		return tx.BeanArticle().ReplaceByBeanID(ctx, beanID, articleIDs)
 	}); err != nil {
 		return err
