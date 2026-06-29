@@ -99,15 +99,15 @@ func cleanupRedisKeys(ctx context.Context, client *redis.Client, pattern string)
 	}
 }
 
-// RateLimitRepositoryのTokenBucket処理を確認。
+// IRateLimitRepositoryのTokenBucket処理を確認。
 // 指定回数までは許可され、上限を超えると拒否され、時間経過で再補充されるかどうか。
-func TestRateLimitRepository_TokenBucket(t *testing.T) {
+func TestIRateLimitRepository_TokenBucket(t *testing.T) {
 	client := newRepositoryTestRedis(t)
 
 	// Repositoryメソッドへ渡すcontext。
 	ctx := context.Background()
 
-	repo := NewRateLimitRepository(client)
+	repo := NewIRateLimitRepository(client)
 
 	// テストごとに衝突しないRedis keyを作る。
 	key := testKeyPrefix(t) + "rate_limit"

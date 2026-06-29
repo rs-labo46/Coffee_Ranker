@@ -12,7 +12,7 @@ import (
 )
 
 // ランキング計算後の指標を保存、取得、ランキング表示するDB操作。
-type ContentMetricRepository interface {
+type IContentMetricRepository interface {
 	Upsert(ctx context.Context, metric *model.ContentMetric) error
 	BulkUpsert(ctx context.Context, metrics []*model.ContentMetric) error
 	FindByRankTargetID(ctx context.Context, rankTargetID uint64) (*model.ContentMetric, error)
@@ -23,7 +23,7 @@ type ContentMetricRepository interface {
 }
 
 // ユーザーまたはゲストの興味スコアを保存、取得、削除するDB操作。
-type InterestProfileRepository interface {
+type IInterestProfileRepository interface {
 	Upsert(ctx context.Context, profile *model.InterestProfile) error
 	BulkUpsert(ctx context.Context, profiles []*model.InterestProfile) error
 	FindByUser(ctx context.Context, userID uint64) ([]*model.InterestProfile, error)
@@ -41,11 +41,11 @@ type GormInterestProfileRepository struct {
 	baseRepo
 }
 
-func NewContentMetricRepository(db *gorm.DB) ContentMetricRepository {
+func NewContentMetricRepository(db *gorm.DB) IContentMetricRepository {
 	return &GormContentMetricRepository{baseRepo{db}}
 }
 
-func NewInterestProfileRepository(db *gorm.DB) InterestProfileRepository {
+func NewInterestProfileRepository(db *gorm.DB) IInterestProfileRepository {
 	return &GormInterestProfileRepository{baseRepo{db}}
 }
 

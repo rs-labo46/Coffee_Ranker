@@ -10,16 +10,16 @@ import (
 
 // 計算済みContentMetricから表示用ランキングを作る。
 type RankingUsecase struct {
-	metrics  repository.ContentMetricRepository
-	beans    repository.BeanRepository
-	articles repository.ArticleRepository
+	metrics  repository.IContentMetricRepository
+	beans    repository.IBeanRepository
+	articles repository.IArticleRepository
 }
 
 // ランキング候補をもとに、User/Guest向けの推薦候補を取得。
 // Userの場合だけ、保存済みコンテンツを候補から除外する。
 type RecommendationUsecase struct {
-	metrics repository.ContentMetricRepository
-	saved   repository.SavedItemRepository
+	metrics repository.IContentMetricRepository
+	saved   repository.ISavedItemRepository
 }
 
 // ランキング指標と、それに対応するBean/Article本体をまとめる。
@@ -38,13 +38,13 @@ type RecommendationInput struct {
 
 // ランキング取得に必要なRepositoryを受け取るコンストラクタ。
 // rankTargetsは現状このUsecase内では直接使わない。
-func NewRankingUsecase(metrics repository.ContentMetricRepository, rankTargets repository.RankTargetRepository, beans repository.BeanRepository, articles repository.ArticleRepository) *RankingUsecase {
+func NewRankingUsecase(metrics repository.IContentMetricRepository, rankTargets repository.IRankTargetRepository, beans repository.IBeanRepository, articles repository.IArticleRepository) *RankingUsecase {
 	return &RankingUsecase{metrics: metrics, beans: beans, articles: articles}
 }
 
 // 推薦候補取得に必要なRepositoryを受け取るコンストラクタ。
 // interestsはModalUsecase側で使うため、このUsecaseでは保持しない。
-func NewRecommendationUsecase(metrics repository.ContentMetricRepository, interests repository.InterestProfileRepository, saved repository.SavedItemRepository) *RecommendationUsecase {
+func NewRecommendationUsecase(metrics repository.IContentMetricRepository, interests repository.IInterestProfileRepository, saved repository.ISavedItemRepository) *RecommendationUsecase {
 	return &RecommendationUsecase{metrics: metrics, saved: saved}
 }
 

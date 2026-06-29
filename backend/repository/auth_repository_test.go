@@ -12,6 +12,7 @@ import (
 	"coffee-ranker/entity"
 	"coffee-ranker/model"
 
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -20,59 +21,57 @@ import (
 func newRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	// 環境変数でRepository統合テストをスキップできるように。
+	// 環境変数でRepository統合テストをスキップできるようにする。
 	if os.Getenv("SKIP_REPOSITORY_INTEGRATION_TESTS") == "1" {
 		t.Skip("SKIP_REPOSITORY_INTEGRATION_TESTS=1")
 	}
 
-	// 未指定の場合は、ローカルDockerのPostgreSQLに接続。
+	// go test ./repository の実行時は、カレントディレクトリが repository 配下になる。
+	// そのため backend/.env を読むには ../.env を指定する。
+	_ = godotenv.Load("../.env", ".env")
+
+	// TEST_DATABASE_DSN があれば最優先で使う。
+	// CIや別DBでテストしたい場合に、接続先を明示的に差し替えるため。
 	dsn := os.Getenv("TEST_DATABASE_DSN")
 	if dsn == "" {
-		dsn = "host=127.0.0.1 user=myuser password=mypassword dbname=mydb port=5435 sslmode=disable TimeZone=Asia/Tokyo"
+		dsn = fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
+			testEnv("POSTGRES_HOST", "127.0.0.1"),
+			testEnv("POSTGRES_USER", "coffee"),
+			testEnv("POSTGRES_PASSWORD", "coffeepassword"),
+			testEnv("POSTGRES_DB", "mydb"),
+			testEnv("POSTGRES_PORT", "5435"),
+		)
 	}
 
-	// PostgreSQLへ接続。
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open test database: %v", err)
 	}
 
-	// GORM内部のsql.DBを取得。
-	// 接続数制御や最後のCloseで使う。
 	sqlDB, err := db.DB()
 	if err != nil {
 		t.Fatalf("get sql db: %v", err)
 	}
 
-	// search_pathはPostgreSQLの接続。
-	// 接続数を1つに固定。
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 
-	// テストごとになschema名を作る。
-	// 同じDBを使っても、テスト同士のテーブルやデータが混ざらないように。
 	schema := fmt.Sprintf("repo_test_%d", time.Now().UnixNano())
 
-	// テスト専用schemaを作成。
 	if err := db.Exec("CREATE SCHEMA " + quoteIdent(schema)).Error; err != nil {
 		t.Fatalf("create test schema: %v", err)
 	}
 
-	// この接続では、作成したschemaを優先して見るように。
-	// 以降のAutoMigrateやRepository操作は、このschema内のテーブルを使う。
 	if err := db.Exec("SET search_path TO " + quoteIdent(schema)).Error; err != nil {
 		t.Fatalf("set search_path: %v", err)
 	}
 
-	// テスト終了時に専用schemaを削除。
-	// CASCADEにより、schema内に作られたテーブルもまとめて削除される。
 	t.Cleanup(func() {
 		_ = db.Exec("DROP SCHEMA IF EXISTS " + quoteIdent(schema) + " CASCADE").Error
 		_ = sqlDB.Close()
 	})
 
-	// Repositoryテストで使う全テーブルを作成。
-	//テスト専用schema内へテーブルを作る。
 	if err := db.AutoMigrate(
 		&model.User{},
 		&model.GuestSession{},
@@ -95,6 +94,26 @@ func newRepositoryTestDB(t *testing.T) *gorm.DB {
 	}
 
 	return db
+}
+
+func testEnv(key string, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+
+	// Macから go test ./repository を実行する場合、Docker Compose内の service名 db は名前解決できない。
+	// backend/.env が POSTGRES_HOST=db になっていても、テストではlocalhost接続に寄せる。
+	if key == "POSTGRES_HOST" && value == "db" {
+		return "127.0.0.1"
+	}
+
+	// Docker内のPostgreSQLは5432だが、Macからはcomposeの公開ポート5435で接続する。
+	if key == "POSTGRES_PORT" && value == "5432" {
+		return "5435"
+	}
+
+	return value
 }
 
 // Repositoryテスト用のUserを作成。
@@ -281,7 +300,7 @@ func TestRefreshTokenRepository_RevokeFamilyAndDeleteExpired(t *testing.T) {
 	revokedAt := now.Add(time.Minute)
 
 	// family_idがfamily-revokeのRefreshTokenをまとめて失効。
-	if err := repo.RevokeFamily(ctx, "family-revoke", revokedAt); err != nil {
+	if err := repo.RevokeByFamilyID(ctx, "family-revoke", revokedAt); err != nil {
 		t.Fatalf("revoke family: %v", err)
 	}
 

@@ -12,7 +12,7 @@ import (
 )
 
 // 行動ログの保存、取得、集計に必要なDB操作。
-type ActionEventRepository interface {
+type IActionEventRepository interface {
 	Create(ctx context.Context, event *model.ActionEvent) error
 	BulkCreate(ctx context.Context, events []*model.ActionEvent) error
 	FindRecentByActor(ctx context.Context, userID *uint64, guestSessionID *uint64, limit int) ([]*model.ActionEvent, error)
@@ -25,7 +25,7 @@ type ActionEventRepository interface {
 }
 
 // ユーザーの保存済みコンテンツを作成、解除、取得するDB操作。
-type SavedItemRepository interface {
+type ISavedItemRepository interface {
 	Create(ctx context.Context, item *model.SavedItem) error
 	FindByUserAndTarget(ctx context.Context, userID uint64, rankTargetID uint64) (*model.SavedItem, error)
 	SaveOrRestore(ctx context.Context, userID uint64, rankTargetID uint64, now time.Time) (*model.SavedItem, error)
@@ -36,7 +36,7 @@ type SavedItemRepository interface {
 }
 
 // GoodやBad評価の登録、更新、削除、集計に必要なDB操作。
-type RatingRepository interface {
+type IRatingRepository interface {
 	Create(ctx context.Context, rating *model.Rating) error
 	FindByUserAndTarget(ctx context.Context, userID uint64, rankTargetID uint64) (*model.Rating, error)
 	Upsert(ctx context.Context, userID uint64, rankTargetID uint64, score entity.RatingScore, now time.Time) (*model.Rating, error)
@@ -94,17 +94,17 @@ type InterestAggregate struct {
 }
 
 // 行動ログRepositoryのGORM実装。
-func NewActionEventRepository(db *gorm.DB) ActionEventRepository {
+func NewActionEventRepository(db *gorm.DB) IActionEventRepository {
 	return &GormActionEventRepository{baseRepo{db}}
 }
 
 // 保存済みRepositoryのGORM実装。
-func NewSavedItemRepository(db *gorm.DB) SavedItemRepository {
+func NewSavedItemRepository(db *gorm.DB) ISavedItemRepository {
 	return &GormSavedItemRepository{baseRepo{db}}
 }
 
 // 評価RepositoryのGORM実装。
-func NewRatingRepository(db *gorm.DB) RatingRepository {
+func NewRatingRepository(db *gorm.DB) IRatingRepository {
 	return &GormRatingRepository{baseRepo{db}}
 }
 

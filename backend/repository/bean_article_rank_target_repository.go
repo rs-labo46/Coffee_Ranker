@@ -11,7 +11,7 @@ import (
 )
 
 // BeanとArticleの関連付け、削除、一覧取得、一括差し替え。
-type BeanArticleRepository interface {
+type IBeanArticleRepository interface {
 	Create(ctx context.Context, relation *model.BeanArticle) error
 	Delete(ctx context.Context, beanID uint64, articleID uint64) error
 	Exists(ctx context.Context, beanID uint64, articleID uint64) (bool, error)
@@ -21,7 +21,7 @@ type BeanArticleRepository interface {
 }
 
 // Bean/Articleをランキング対象として共通管理するDB操作。
-type RankTargetRepository interface {
+type IRankTargetRepository interface {
 	Create(ctx context.Context, target *model.RankTarget) error
 	FindByID(ctx context.Context, id uint64) (*model.RankTarget, error)
 	FindByContent(ctx context.Context, contentType entity.ContentType, contentID uint64) (*model.RankTarget, error)
@@ -72,18 +72,18 @@ type ArticleSearchFilter struct {
 	Offset   int
 }
 
-func NewBeanRepository(db *gorm.DB) BeanRepository {
+func NewBeanRepository(db *gorm.DB) IBeanRepository {
 	return &GormBeanRepository{baseRepo{db}}
 }
 
-func NewArticleRepository(db *gorm.DB) ArticleRepository {
+func NewArticleRepository(db *gorm.DB) IArticleRepository {
 	return &GormArticleRepository{baseRepo{db}}
 }
 
-func NewBeanArticleRepository(db *gorm.DB) BeanArticleRepository {
+func NewBeanArticleRepository(db *gorm.DB) IBeanArticleRepository {
 	return &GormBeanArticleRepository{baseRepo{db}}
 }
-func NewRankTargetRepository(db *gorm.DB) RankTargetRepository {
+func NewRankTargetRepository(db *gorm.DB) IRankTargetRepository {
 	return &GormRankTargetRepository{baseRepo{db}}
 }
 

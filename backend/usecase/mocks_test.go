@@ -198,22 +198,22 @@ func (f *fakeUserRepo) List(ctx context.Context, limit int, offset int) ([]*mode
 }
 
 type fakeRefreshTokenRepo struct {
-	created         []*model.RefreshToken
-	createErr       error
-	byHash          *model.RefreshToken
-	byHashErr       error
-	byHashUser      *model.RefreshToken
-	byHashUserErr   error
-	forUpdate       *model.RefreshToken
-	forUpdateErr    error
-	markedUsedID    uint64
-	markUsedErr     error
-	revokedFamily   string
-	revokeFamilyErr error
-	revokedUserID   uint64
-	revokeUserErr   error
-	deleteCount     int64
-	deleteErr       error
+	created           []*model.RefreshToken
+	createErr         error
+	byHash            *model.RefreshToken
+	byHashErr         error
+	byHashUser        *model.RefreshToken
+	byHashUserErr     error
+	forUpdate         *model.RefreshToken
+	forUpdateErr      error
+	markedUsedID      uint64
+	markUsedErr       error
+	revokedFamily     string
+	revokeByFamilyErr error
+	revokedUserID     uint64
+	revokeUserErr     error
+	deleteCount       int64
+	deleteErr         error
 }
 
 func (f *fakeRefreshTokenRepo) FindByTokenHash(ctx context.Context, tokenHash string) (*model.RefreshToken, error) {
@@ -257,9 +257,9 @@ func (f *fakeRefreshTokenRepo) Create(ctx context.Context, token *model.RefreshT
 func (f *fakeRefreshTokenRepo) Revoke(ctx context.Context, id uint64, revokedAt time.Time) error {
 	return nil
 }
-func (f *fakeRefreshTokenRepo) RevokeFamily(ctx context.Context, familyID string, revokedAt time.Time) error {
+func (f *fakeRefreshTokenRepo) RevokeByFamilyID(ctx context.Context, familyID string, revokedAt time.Time) error {
 	f.revokedFamily = familyID
-	return f.revokeFamilyErr
+	return f.revokeByFamilyErr
 }
 func (f *fakeRefreshTokenRepo) RevokeByUserID(ctx context.Context, userID uint64, revokedAt time.Time) error {
 	f.revokedUserID = userID
@@ -870,34 +870,34 @@ func (f *fakeBatchLockRepo) Extend(ctx context.Context, key string, owner string
 }
 
 type fakeTxManager struct {
-	repos  repository.TxRepos
+	repos  repository.ITxRepos
 	called bool
 }
 
-func (f *fakeTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context, tx repository.TxRepos) error) error {
+func (f *fakeTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context, tx repository.ITxRepos) error) error {
 	f.called = true
 	return fn(ctx, f.repos)
 }
 
 type fakeTxRepos struct {
-	user     repository.UserRepository
-	refresh  repository.RefreshTokenRepository
-	bean     repository.BeanRepository
-	article  repository.ArticleRepository
-	rank     repository.RankTargetRepository
-	relation repository.BeanArticleRepository
-	metric   repository.ContentMetricRepository
-	run      repository.BatchRunRepository
+	user     repository.IUserRepository
+	refresh  repository.IRefreshTokenRepository
+	bean     repository.IBeanRepository
+	article  repository.IArticleRepository
+	rank     repository.IRankTargetRepository
+	relation repository.IBeanArticleRepository
+	metric   repository.IContentMetricRepository
+	run      repository.IBatchRunRepository
 }
 
-func (f fakeTxRepos) User() repository.UserRepository                   { return f.user }
-func (f fakeTxRepos) RefreshToken() repository.RefreshTokenRepository   { return f.refresh }
-func (f fakeTxRepos) Bean() repository.BeanRepository                   { return f.bean }
-func (f fakeTxRepos) Article() repository.ArticleRepository             { return f.article }
-func (f fakeTxRepos) RankTarget() repository.RankTargetRepository       { return f.rank }
-func (f fakeTxRepos) BeanArticle() repository.BeanArticleRepository     { return f.relation }
-func (f fakeTxRepos) ContentMetric() repository.ContentMetricRepository { return f.metric }
-func (f fakeTxRepos) BatchRun() repository.BatchRunRepository           { return f.run }
+func (f fakeTxRepos) User() repository.IUserRepository                   { return f.user }
+func (f fakeTxRepos) RefreshToken() repository.IRefreshTokenRepository   { return f.refresh }
+func (f fakeTxRepos) Bean() repository.IBeanRepository                   { return f.bean }
+func (f fakeTxRepos) Article() repository.IArticleRepository             { return f.article }
+func (f fakeTxRepos) RankTarget() repository.IRankTargetRepository       { return f.rank }
+func (f fakeTxRepos) BeanArticle() repository.IBeanArticleRepository     { return f.relation }
+func (f fakeTxRepos) ContentMetric() repository.IContentMetricRepository { return f.metric }
+func (f fakeTxRepos) BatchRun() repository.IBatchRunRepository           { return f.run }
 
 type fakeModalDisplayRepo struct {
 	created      *model.ModalDisplayLog

@@ -3,6 +3,7 @@ module coffee-ranker
 go 1.26.2
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.15.4
 	github.com/redis/go-redis/v9 v9.21.0
 	gorm.io/gorm v1.31.2

@@ -10,8 +10,8 @@ import (
 
 // 公開Bean/Articleの検索条件を整える。
 type SearchUsecase struct {
-	beans    repository.BeanRepository
-	articles repository.ArticleRepository
+	beans    repository.IBeanRepository
+	articles repository.IArticleRepository
 }
 
 // Bean検索で受け取る条件:味覚条件、産地、焙煎度、並び順、ページングをまとめる。
@@ -37,7 +37,7 @@ type ArticleSearchInput struct {
 }
 
 // 検索に必要なBean/Article Repositoryを受け取るコンストラクタ。
-func NewSearchUsecase(beans repository.BeanRepository, articles repository.ArticleRepository) *SearchUsecase {
+func NewSearchUsecase(beans repository.IBeanRepository, articles repository.IArticleRepository) *SearchUsecase {
 	return &SearchUsecase{beans: beans, articles: articles}
 }
 

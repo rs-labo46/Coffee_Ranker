@@ -22,7 +22,7 @@ func TestTxManager_RollbackKeepsOriginalBusinessError(t *testing.T) {
 	txManager := NewTxManager(db)
 
 	// transaction内でUserを作成した後、意図的に業務エラーを返す。
-	err := txManager.WithinTx(ctx, func(ctx context.Context, tx TxRepos) error {
+	err := txManager.WithinTx(ctx, func(ctx context.Context, tx ITxRepos) error {
 		user := model.User{
 			Name:         "rollback-user",
 			Email:        "rollback@example.com",

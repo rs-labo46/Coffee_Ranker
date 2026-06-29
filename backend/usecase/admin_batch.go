@@ -11,7 +11,7 @@ import (
 // 管理者がバッチを手動実行し、実行履歴を確認する。
 // 実際の集計処理はRankingBatchUsecase / InterestBatchUsecaseへ任せる。
 type AdminBatchUsecase struct {
-	runs     repository.BatchRunRepository
+	runs     repository.IBatchRunRepository
 	ranking  *RankingBatchUsecase
 	interest *InterestBatchUsecase
 }
@@ -19,7 +19,7 @@ type AdminBatchUsecase struct {
 // AdminBatchUsecase。
 // runsは履歴取得に使い、ranking/interestは手動実行の本体処理に使う。
 func NewAdminBatchUsecase(
-	runs repository.BatchRunRepository,
+	runs repository.IBatchRunRepository,
 	ranking *RankingBatchUsecase,
 	interest *InterestBatchUsecase,
 ) *AdminBatchUsecase {

@@ -10,25 +10,25 @@ import (
 
 // Userの保存、保存解除、保存一覧、保存済み確認。
 type SavedItemUsecase struct {
-	saved       repository.SavedItemRepository
-	rankTargets repository.RankTargetRepository
-	events      repository.ActionEventRepository
+	saved       repository.ISavedItemRepository
+	rankTargets repository.IRankTargetRepository
+	events      repository.IActionEventRepository
 }
 
 // UserのGood/Bad評価、再評価、評価削除、評価取得。
 type RatingUsecase struct {
-	ratings     repository.RatingRepository
-	rankTargets repository.RankTargetRepository
-	events      repository.ActionEventRepository
+	ratings     repository.IRatingRepository
+	rankTargets repository.IRankTargetRepository
+	events      repository.IActionEventRepository
 }
 
 // 保存処理に必要なコンストラクタ。
-func NewSavedItemUsecase(saved repository.SavedItemRepository, rankTargets repository.RankTargetRepository, events repository.ActionEventRepository) *SavedItemUsecase {
+func NewSavedItemUsecase(saved repository.ISavedItemRepository, rankTargets repository.IRankTargetRepository, events repository.IActionEventRepository) *SavedItemUsecase {
 	return &SavedItemUsecase{saved: saved, rankTargets: rankTargets, events: events}
 }
 
 // 評価処理に必要なコンストラクタ。
-func NewRatingUsecase(ratings repository.RatingRepository, rankTargets repository.RankTargetRepository, events repository.ActionEventRepository) *RatingUsecase {
+func NewRatingUsecase(ratings repository.IRatingRepository, rankTargets repository.IRankTargetRepository, events repository.IActionEventRepository) *RatingUsecase {
 	return &RatingUsecase{ratings: ratings, rankTargets: rankTargets, events: events}
 }
 
@@ -202,7 +202,7 @@ func (u *RatingUsecase) Get(ctx context.Context, userID uint64, rankTargetID uin
 }
 
 // RankTarget IDが有効なランキング対象として存在することを確認。
-func ensureActiveRankTarget(ctx context.Context, repo repository.RankTargetRepository, rankTargetID uint64) error {
+func ensureActiveRankTarget(ctx context.Context, repo repository.IRankTargetRepository, rankTargetID uint64) error {
 	// rankTargetIDが0なら対象を特定できないため不正入力。
 	if rankTargetID == 0 {
 		return entity.ErrInvalidInput

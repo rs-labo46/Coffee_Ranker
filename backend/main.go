@@ -3,22 +3,31 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
+
+	"coffee-ranker/db"
+
+	"github.com/labstack/echo/v4"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	database, err := db.NewDB()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+	defer func() {
+		if err := db.CloseDB(database); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	e := echo.New()
+
+	e.GET("/health", func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
 	})
 
-	log.Println("api server listening on :" + port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := e.Start(":8080"); err != nil {
 		log.Fatal(err)
 	}
 }

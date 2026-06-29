@@ -23,12 +23,12 @@ func modalActorKey(actor Actor) (string, error) {
 
 // 推薦モーダルの表示可否、表示記録、クリック、閉じる処理。
 type ModalUsecase struct {
-	displays    repository.ModalDisplayLogRepository
-	blocks      repository.ModalBlockLogRepository
-	rankTargets repository.RankTargetRepository
-	saved       repository.SavedItemRepository
-	events      repository.ActionEventRepository
-	suppression repository.ModalSuppressionRepository
+	displays    repository.IModalDisplayLogRepository
+	blocks      repository.IModalBlockLogRepository
+	rankTargets repository.IRankTargetRepository
+	saved       repository.ISavedItemRepository
+	events      repository.IActionEventRepository
+	suppression repository.IModalSuppressionRepository
 }
 
 // モーダル表示判断に必要なactor、候補、表示理由、表示場所。
@@ -48,7 +48,7 @@ type ModalActionInput struct {
 }
 
 // モーダル制御に必要なRepositoryを受け取るコンストラクタ。
-func NewModalUsecase(displays repository.ModalDisplayLogRepository, blocks repository.ModalBlockLogRepository, rankTargets repository.RankTargetRepository, saved repository.SavedItemRepository, events repository.ActionEventRepository, suppression repository.ModalSuppressionRepository) *ModalUsecase {
+func NewModalUsecase(displays repository.IModalDisplayLogRepository, blocks repository.IModalBlockLogRepository, rankTargets repository.IRankTargetRepository, saved repository.ISavedItemRepository, events repository.IActionEventRepository, suppression repository.IModalSuppressionRepository) *ModalUsecase {
 	return &ModalUsecase{
 		displays:    displays,
 		blocks:      blocks,

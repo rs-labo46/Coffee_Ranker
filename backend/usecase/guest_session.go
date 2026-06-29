@@ -10,15 +10,15 @@ import (
 )
 
 // GuestSession keyの生成とhash化をUsecaseから呼ぶためのinterface。
-type GuestKeyManager interface {
+type IGuestKeyManager interface {
 	NewGuestSessionKey(ctx context.Context) (plain string, hash string, err error)
 	HashGuestSessionKey(ctx context.Context, key string) (string, error)
 }
 
 // 未ログインを一時的に識別する
 type GuestSessionUsecase struct {
-	sessions repository.GuestSessionRepository
-	keys     GuestKeyManager
+	sessions repository.IGuestSessionRepository
+	keys     IGuestKeyManager
 	ttl      time.Duration
 }
 
@@ -30,7 +30,7 @@ type GuestSessionResult struct {
 }
 
 // ゲストセッションの管理に必要なRepository、key生成、TTLの受け取り
-func NewGuestSessionUsecase(sessions repository.GuestSessionRepository, keys GuestKeyManager, ttl time.Duration) *GuestSessionUsecase {
+func NewGuestSessionUsecase(sessions repository.IGuestSessionRepository, keys IGuestKeyManager, ttl time.Duration) *GuestSessionUsecase {
 	return &GuestSessionUsecase{sessions: sessions, keys: keys, ttl: ttl}
 }
 

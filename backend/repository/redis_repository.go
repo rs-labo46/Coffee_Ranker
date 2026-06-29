@@ -15,20 +15,20 @@ import (
 )
 
 // Redisで行動ログの重複送信を防ぐ操作。
-type EventDedupRepository interface {
+type IEventDedupRepository interface {
 	SetIfNotExists(ctx context.Context, key string, ttl time.Duration) (bool, error)
 	Exists(ctx context.Context, key string) (bool, error)
 	Delete(ctx context.Context, key string) error
 }
 
 // RedisでAPI利用回数を制限するTokenBucket操作。
-type RateLimitRepository interface {
+type IRateLimitRepository interface {
 	Take(ctx context.Context, key string, capacity int, refillRate float64, now time.Time) (RateLimitResult, error)
 	Reset(ctx context.Context, key string) error
 }
 
 // Redisで推薦モーダルの表示済み、閉じた状態、表示回数を管理する操作。
-type ModalSuppressionRepository interface {
+type IModalSuppressionRepository interface {
 	SetShown(ctx context.Context, actorKey string, rankTargetID uint64, ttl time.Duration) error
 	WasShown(ctx context.Context, actorKey string, rankTargetID uint64) (bool, error)
 	IncrementPageCount(ctx context.Context, actorKey string, pagePath string, ttl time.Duration) (int64, error)
@@ -37,7 +37,7 @@ type ModalSuppressionRepository interface {
 	WasClosed(ctx context.Context, actorKey string, rankTargetID uint64) (bool, error)
 }
 
-type BatchLockRepository interface {
+type IBatchLockRepository interface {
 	Acquire(ctx context.Context, key string, owner string, ttl time.Duration) (bool, error)
 	Release(ctx context.Context, key string, owner string) error
 	Extend(ctx context.Context, key string, owner string, ttl time.Duration) (bool, error)
@@ -49,7 +49,7 @@ type RateLimitResult struct {
 	RetryAfter time.Duration
 }
 
-type RedisRateLimitRepository struct {
+type RedisIRateLimitRepository struct {
 	client *redis.Client
 }
 
@@ -61,20 +61,20 @@ type RedisModalSuppressionRepository struct {
 	client *redis.Client
 }
 
-func NewRateLimitRepository(client *redis.Client) RateLimitRepository {
-	return &RedisRateLimitRepository{client}
+func NewIRateLimitRepository(client *redis.Client) IRateLimitRepository {
+	return &RedisIRateLimitRepository{client}
 }
 
-func NewEventDedupRepository(client *redis.Client) EventDedupRepository {
+func NewEventDedupRepository(client *redis.Client) IEventDedupRepository {
 	return &RedisEventDedupRepository{client: client}
 }
 
-func NewModalSuppressionRepository(client *redis.Client) ModalSuppressionRepository {
+func NewModalSuppressionRepository(client *redis.Client) IModalSuppressionRepository {
 	return &RedisModalSuppressionRepository{client}
 }
 
 // TokenBucketを補充してから1回分を消費できるか判定。
-func (r *RedisRateLimitRepository) Take(ctx context.Context, key string, capacity int, refillRate float64, now time.Time) (RateLimitResult, error) {
+func (r *RedisIRateLimitRepository) Take(ctx context.Context, key string, capacity int, refillRate float64, now time.Time) (RateLimitResult, error) {
 	if capacity <= 0 || refillRate <= 0 || key == "" {
 		return RateLimitResult{}, entity.ErrInvalidInput
 	}
@@ -113,7 +113,7 @@ func (r *RedisRateLimitRepository) Take(ctx context.Context, key string, capacit
 }
 
 // 指定したRateLimitキーを削除して制限状態を初期化。
-func (r *RedisRateLimitRepository) Reset(ctx context.Context, key string) error {
+func (r *RedisIRateLimitRepository) Reset(ctx context.Context, key string) error {
 	if key == "" {
 		return entity.ErrInvalidInput
 	}
@@ -267,7 +267,7 @@ type RedisBatchLockRepository struct {
 }
 
 // バッチlock RepositoryのRedis実装。
-func NewBatchLockRepository(client *redis.Client) BatchLockRepository {
+func NewBatchLockRepository(client *redis.Client) IBatchLockRepository {
 	return &RedisBatchLockRepository{client: client}
 }
 

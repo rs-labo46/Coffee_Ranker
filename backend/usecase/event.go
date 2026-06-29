@@ -18,9 +18,9 @@ type Actor struct {
 
 // フロントから送られる行動イベントを検証して記録する。
 type EventUsecase struct {
-	events      repository.ActionEventRepository
-	rankTargets repository.RankTargetRepository
-	dedup       repository.EventDedupRepository
+	events      repository.IActionEventRepository
+	rankTargets repository.IRankTargetRepository
+	dedup       repository.IEventDedupRepository
 }
 
 // 行動イベント記録に必要なactor、event種別、対象、検索条件をまとめる。
@@ -51,7 +51,7 @@ type RecordEventInput struct {
 }
 
 // 行動イベント記録に必要なRepositoryと重複防止のRepositoryを受け取るコンストラクタ。
-func NewEventUsecase(events repository.ActionEventRepository, rankTargets repository.RankTargetRepository, dedup repository.EventDedupRepository) *EventUsecase {
+func NewEventUsecase(events repository.IActionEventRepository, rankTargets repository.IRankTargetRepository, dedup repository.IEventDedupRepository) *EventUsecase {
 	return &EventUsecase{events: events, rankTargets: rankTargets, dedup: dedup}
 }
 

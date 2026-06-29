@@ -12,28 +12,28 @@ import (
 // 管理者が監査ログを確認。
 // ログイン、ログアウト、管理者操作、バッチ実行などの履歴を確認。
 type AdminAuditUsecase struct {
-	audits repository.AuditLogRepository
+	audits repository.IAuditLogRepository
 }
 
 // 期限切れデータを削除。
 // RefreshToken、GuestSession、一時的なInterestProfileを掃除。
 type CleanupUsecase struct {
-	refreshTokens repository.RefreshTokenRepository
-	guestSessions repository.GuestSessionRepository
-	interests     repository.InterestProfileRepository
+	refreshTokens repository.IRefreshTokenRepository
+	guestSessions repository.IGuestSessionRepository
+	interests     repository.IInterestProfileRepository
 }
 
 // API利用回数を制限する。
 // どのkeyをどの制限値で判定するかはUsecase側で決め、Redis上の残数更新・補充・消費の原子的な処理はRepositoryへ任せる。
 type RateLimitUsecase struct {
-	rates repository.RateLimitRepository
+	rates repository.IRateLimitRepository
 }
 
 // 管理者がRateLimit状態を操作。
 // 管理者によるreset操作は監査ログに残す。
 type AdminRateLimitUsecase struct {
-	rates  repository.RateLimitRepository
-	audits repository.AuditLogRepository
+	rates  repository.IRateLimitRepository
+	audits repository.IAuditLogRepository
 }
 
 // Cleanupで削除した件数を返す結果。
@@ -53,15 +53,15 @@ type RateLimitRule struct {
 }
 
 // AdminAuditUsecaseを組み立てる。
-func NewAdminAuditUsecase(audits repository.AuditLogRepository) *AdminAuditUsecase {
+func NewAdminAuditUsecase(audits repository.IAuditLogRepository) *AdminAuditUsecase {
 	return &AdminAuditUsecase{audits: audits}
 }
 
 // CleanupUsecaseを組み立てる。
 func NewCleanupUsecase(
-	refreshTokens repository.RefreshTokenRepository,
-	guestSessions repository.GuestSessionRepository,
-	interests repository.InterestProfileRepository,
+	refreshTokens repository.IRefreshTokenRepository,
+	guestSessions repository.IGuestSessionRepository,
+	interests repository.IInterestProfileRepository,
 ) *CleanupUsecase {
 	return &CleanupUsecase{
 		refreshTokens: refreshTokens,
@@ -71,15 +71,15 @@ func NewCleanupUsecase(
 }
 
 // RateLimitUsecaseを組み立てる。
-func NewRateLimitUsecase(rates repository.RateLimitRepository) *RateLimitUsecase {
+func NewRateLimitUsecase(rates repository.IRateLimitRepository) *RateLimitUsecase {
 	return &RateLimitUsecase{rates: rates}
 }
 
 // AdminRateLimitUsecaseを組み立てる。
-// 管理者によるRateLimit resetを監査ログに残すため、AuditLogRepositoryも受け取る。
+// 管理者によるRateLimit resetを監査ログに残すため、IAuditLogRepositoryも受け取る。
 func NewAdminRateLimitUsecase(
-	rates repository.RateLimitRepository,
-	audits repository.AuditLogRepository,
+	rates repository.IRateLimitRepository,
+	audits repository.IAuditLogRepository,
 ) *AdminRateLimitUsecase {
 	return &AdminRateLimitUsecase{
 		rates:  rates,

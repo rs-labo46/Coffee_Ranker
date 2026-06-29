@@ -11,7 +11,7 @@ import (
 )
 
 // Beanの作成、更新、公開取得、検索に必要なDB操作。
-type BeanRepository interface {
+type IBeanRepository interface {
 	Create(ctx context.Context, bean *model.Bean) error
 	Update(ctx context.Context, bean *model.Bean) error
 	FindByID(ctx context.Context, id uint64) (*model.Bean, error)
@@ -25,7 +25,7 @@ type BeanRepository interface {
 }
 
 // Articleの作成、更新、公開取得、検索に必要なDB操作。
-type ArticleRepository interface {
+type IArticleRepository interface {
 	Create(ctx context.Context, article *model.Article) error
 	Update(ctx context.Context, article *model.Article) error
 	FindByID(ctx context.Context, id uint64) (*model.Article, error)
@@ -41,7 +41,7 @@ type ArticleRepository interface {
 }
 
 // バッチ実行履歴の作成、成功更新、失敗更新、取得。
-type BatchRunRepository interface {
+type IBatchRunRepository interface {
 	Create(ctx context.Context, run *model.BatchRun) error
 	MarkSuccess(ctx context.Context, id uint64, finishedAt time.Time, rowsProcessed int64) error
 	MarkFailed(ctx context.Context, id uint64, finishedAt time.Time, rowsProcessed int64, errorMessage string) error
@@ -51,7 +51,7 @@ type BatchRunRepository interface {
 }
 
 // 認証、管理者操作、バッチ操作の監査ログを扱うDB操作。
-type AuditLogRepository interface {
+type IAuditLogRepository interface {
 	Create(ctx context.Context, log *model.AuditLog) error
 	FindByID(ctx context.Context, id uint64) (*model.AuditLog, error)
 	List(ctx context.Context, filter AuditLogFilter) ([]*model.AuditLog, error)
@@ -61,15 +61,15 @@ type AuditLogRepository interface {
 }
 
 // transaction内で使うRepository群をUsecaseへ渡すための窓口。
-type TxRepos interface {
-	User() UserRepository
-	RefreshToken() RefreshTokenRepository
-	Bean() BeanRepository
-	Article() ArticleRepository
-	RankTarget() RankTargetRepository
-	BeanArticle() BeanArticleRepository
-	ContentMetric() ContentMetricRepository
-	BatchRun() BatchRunRepository
+type ITxRepos interface {
+	User() IUserRepository
+	RefreshToken() IRefreshTokenRepository
+	Bean() IBeanRepository
+	Article() IArticleRepository
+	RankTarget() IRankTargetRepository
+	BeanArticle() IBeanArticleRepository
+	ContentMetric() IContentMetricRepository
+	BatchRun() IBatchRunRepository
 }
 
 // 監査ログ一覧を絞り込むための検索条件。
@@ -87,7 +87,7 @@ type AuditLogFilter struct {
 
 // 複数DB更新を1つのtransactionとして実行するためのinterface。
 type TxManager interface {
-	WithinTx(ctx context.Context, fn func(ctx context.Context, tx TxRepos) error) error
+	WithinTx(ctx context.Context, fn func(ctx context.Context, tx ITxRepos) error) error
 }
 
 type GormBatchRunRepository struct {
@@ -105,23 +105,23 @@ type GormTxManager struct {
 
 // transaction用DBに差し替えたRepositoryをまとめる構造体。
 type gormTxRepos struct {
-	user          UserRepository
-	refreshToken  RefreshTokenRepository
-	bean          BeanRepository
-	article       ArticleRepository
-	rankTarget    RankTargetRepository
-	beanArticle   BeanArticleRepository
-	contentMetric ContentMetricRepository
-	batchRun      BatchRunRepository
+	user          IUserRepository
+	refreshToken  IRefreshTokenRepository
+	bean          IBeanRepository
+	article       IArticleRepository
+	rankTarget    IRankTargetRepository
+	beanArticle   IBeanArticleRepository
+	contentMetric IContentMetricRepository
+	batchRun      IBatchRunRepository
 }
 
 // バッチ実行履歴Repository
-func NewBatchRunRepository(db *gorm.DB) BatchRunRepository {
+func NewBatchRunRepository(db *gorm.DB) IBatchRunRepository {
 	return &GormBatchRunRepository{baseRepo{db}}
 }
 
 // 監査ログRepository
-func NewAuditLogRepository(db *gorm.DB) AuditLogRepository {
+func NewIAuditLogRepository(db *gorm.DB) IAuditLogRepository {
 	return &GormAuditLogRepository{baseRepo{db}}
 }
 
@@ -258,7 +258,7 @@ func (r *GormAuditLogRepository) ListByRequestID(ctx context.Context, requestID 
 }
 
 // Usecaseから渡された処理をGORM transaction内で実行。
-func (m *GormTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context, tx TxRepos) error) error {
+func (m *GormTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context, tx ITxRepos) error) error {
 	return m.db.WithContext(ctx).Transaction(func(txDB *gorm.DB) error {
 		txRepos := &gormTxRepos{
 			user:          NewUserRepository(txDB),
@@ -274,33 +274,33 @@ func (m *GormTxManager) WithinTx(ctx context.Context, fn func(ctx context.Contex
 	})
 }
 
-func (r *gormTxRepos) User() UserRepository {
+func (r *gormTxRepos) User() IUserRepository {
 	return r.user
 }
 
-func (r *gormTxRepos) RefreshToken() RefreshTokenRepository {
+func (r *gormTxRepos) RefreshToken() IRefreshTokenRepository {
 	return r.refreshToken
 }
 
-func (r *gormTxRepos) Bean() BeanRepository {
+func (r *gormTxRepos) Bean() IBeanRepository {
 	return r.bean
 }
 
-func (r *gormTxRepos) Article() ArticleRepository {
+func (r *gormTxRepos) Article() IArticleRepository {
 	return r.article
 }
 
-func (r *gormTxRepos) RankTarget() RankTargetRepository {
+func (r *gormTxRepos) RankTarget() IRankTargetRepository {
 	return r.rankTarget
 }
 
-func (r *gormTxRepos) BeanArticle() BeanArticleRepository {
+func (r *gormTxRepos) BeanArticle() IBeanArticleRepository {
 	return r.beanArticle
 }
-func (r *gormTxRepos) ContentMetric() ContentMetricRepository {
+func (r *gormTxRepos) ContentMetric() IContentMetricRepository {
 	return r.contentMetric
 }
 
-func (r *gormTxRepos) BatchRun() BatchRunRepository {
+func (r *gormTxRepos) BatchRun() IBatchRunRepository {
 	return r.batchRun
 }

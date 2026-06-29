@@ -16,23 +16,23 @@ type Page struct {
 
 // 公開Beanの一覧、詳細、関連記事を取得。
 type BeanUsecase struct {
-	beans     repository.BeanRepository
-	relations repository.BeanArticleRepository
+	beans     repository.IBeanRepository
+	relations repository.IBeanArticleRepository
 }
 
 // 公開Articleの一覧、詳細、関連Beanを取得。
 type ArticleUsecase struct {
-	articles  repository.ArticleRepository
-	relations repository.BeanArticleRepository
+	articles  repository.IArticleRepository
+	relations repository.IBeanArticleRepository
 }
 
 // Bean表示に必要なRepositoryを受け取るコンストラクタ。
-func NewBeanUsecase(beans repository.BeanRepository, relations repository.BeanArticleRepository) *BeanUsecase {
+func NewBeanUsecase(beans repository.IBeanRepository, relations repository.IBeanArticleRepository) *BeanUsecase {
 	return &BeanUsecase{beans: beans, relations: relations}
 }
 
 // Article表示に必要なRepositoryを受け取るコンストラクタ。
-func NewArticleUsecase(articles repository.ArticleRepository, relations repository.BeanArticleRepository) *ArticleUsecase {
+func NewArticleUsecase(articles repository.IArticleRepository, relations repository.IBeanArticleRepository) *ArticleUsecase {
 	return &ArticleUsecase{articles: articles, relations: relations}
 }
 

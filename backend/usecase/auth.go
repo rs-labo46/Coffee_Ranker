@@ -26,9 +26,9 @@ type TokenManager interface {
 
 // Signup、Login、Refresh、Logout、Meを扱う認証。
 type AuthUsecase struct {
-	users         repository.UserRepository
-	refreshTokens repository.RefreshTokenRepository
-	audits        repository.AuditLogRepository
+	users         repository.IUserRepository
+	refreshTokens repository.IRefreshTokenRepository
+	audits        repository.IAuditLogRepository
 	txManager     repository.TxManager
 	passwords     PasswordHasher
 	tokens        TokenManager
@@ -83,7 +83,7 @@ func requireUserID(userID uint64) error {
 }
 
 // 監査ログの作成失敗で、本体の処理を失敗させない
-func safeAudit(ctx context.Context, repo repository.AuditLogRepository, log *model.AuditLog) {
+func safeAudit(ctx context.Context, repo repository.IAuditLogRepository, log *model.AuditLog) {
 	if repo == nil || log == nil {
 		return
 	}
@@ -105,7 +105,7 @@ func auditLog(actorType entity.AuditActorType, actorUserID *uint64, action entit
 }
 
 // 認証処理に必要なRepository、TxManager、token/password処理の受け取り
-func NewAuthUsecase(users repository.UserRepository, refreshTokens repository.RefreshTokenRepository, audits repository.AuditLogRepository, txManager repository.TxManager, passwords PasswordHasher, tokens TokenManager, refreshTTL time.Duration) *AuthUsecase {
+func NewAuthUsecase(users repository.IUserRepository, refreshTokens repository.IRefreshTokenRepository, audits repository.IAuditLogRepository, txManager repository.TxManager, passwords PasswordHasher, tokens TokenManager, refreshTTL time.Duration) *AuthUsecase {
 	return &AuthUsecase{
 		users:         users,
 		refreshTokens: refreshTokens,
@@ -246,7 +246,7 @@ func (u *AuthUsecase) Refresh(ctx context.Context, refreshToken string, meta Aud
 	var reuseDetected bool
 	var reuseUserID *uint64
 
-	err = u.txManager.WithinTx(ctx, func(ctx context.Context, tx repository.TxRepos) error {
+	err = u.txManager.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
 		// 同じRefreshTokenを二重に使わせないため、対象行をlockして取得。
 		token, err := tx.RefreshToken().FindByTokenHashWithUserForUpdate(ctx, oldHash)
 		if err != nil {
@@ -280,7 +280,7 @@ func (u *AuthUsecase) Refresh(ctx context.Context, refreshToken string, meta Aud
 			userID := token.UserID
 			reuseUserID = &userID
 
-			if err := tx.RefreshToken().RevokeFamily(ctx, token.FamilyID, now); err != nil {
+			if err := tx.RefreshToken().RevokeByFamilyID(ctx, token.FamilyID, now); err != nil {
 				return err
 			}
 
@@ -380,7 +380,7 @@ func (u *AuthUsecase) LogoutCurrentFamily(ctx context.Context, userID uint64, re
 		return nil
 	}
 	//同じfamily_idのRefreshTokenをまとめて失効
-	if err := u.refreshTokens.RevokeFamily(ctx, token.FamilyID, time.Now()); err != nil {
+	if err := u.refreshTokens.RevokeByFamilyID(ctx, token.FamilyID, time.Now()); err != nil {
 		return err
 	}
 	//ogout監査ログを作成
@@ -396,7 +396,7 @@ func (u *AuthUsecase) LogoutAllDevices(ctx context.Context, userID uint64, meta 
 	}
 	now := time.Now()
 	//DB更新をTxでまとめる
-	if err := u.txManager.WithinTx(ctx, func(ctx context.Context, tx repository.TxRepos) error {
+	if err := u.txManager.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
 		//そのUserの全RefreshTokenを失効
 		if err := tx.RefreshToken().RevokeByUserID(ctx, userID, now); err != nil {
 			return err

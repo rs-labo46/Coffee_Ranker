@@ -13,22 +13,22 @@ import (
 // ランキング用の集計バッチ。
 // action_eventsを集計し、content_metricsにランキング指標として保存。
 type RankingBatchUsecase struct {
-	events  repository.ActionEventRepository
-	metrics repository.ContentMetricRepository
-	runs    repository.BatchRunRepository
-	locks   repository.BatchLockRepository
-	audits  repository.AuditLogRepository
+	events  repository.IActionEventRepository
+	metrics repository.IContentMetricRepository
+	runs    repository.IBatchRunRepository
+	locks   repository.IBatchLockRepository
+	audits  repository.IAuditLogRepository
 	tx      repository.TxManager
 }
 
 // 興味プロフィール用の集計バッチ。
 // User/Guestの行動ログを集計し、interest_profilesを更新。
 type InterestBatchUsecase struct {
-	events    repository.ActionEventRepository
-	profiles  repository.InterestProfileRepository
-	runs      repository.BatchRunRepository
-	locks     repository.BatchLockRepository
-	audits    repository.AuditLogRepository
+	events    repository.IActionEventRepository
+	profiles  repository.IInterestProfileRepository
+	runs      repository.IBatchRunRepository
+	locks     repository.IBatchLockRepository
+	audits    repository.IAuditLogRepository
 	expiresIn time.Duration
 }
 
@@ -53,11 +53,11 @@ type InterestBatchInput struct {
 
 // RankingBatchUsecase。
 func NewRankingBatchUsecase(
-	events repository.ActionEventRepository,
-	metrics repository.ContentMetricRepository,
-	runs repository.BatchRunRepository,
-	locks repository.BatchLockRepository,
-	audits repository.AuditLogRepository,
+	events repository.IActionEventRepository,
+	metrics repository.IContentMetricRepository,
+	runs repository.IBatchRunRepository,
+	locks repository.IBatchLockRepository,
+	audits repository.IAuditLogRepository,
 	tx repository.TxManager,
 ) *RankingBatchUsecase {
 	return &RankingBatchUsecase{
@@ -73,11 +73,11 @@ func NewRankingBatchUsecase(
 // InterestBatchUsecase
 // expiresInは、Guestなど一時的な興味プロフィールに有効期限を付けるために使う。
 func NewInterestBatchUsecase(
-	events repository.ActionEventRepository,
-	profiles repository.InterestProfileRepository,
-	runs repository.BatchRunRepository,
-	locks repository.BatchLockRepository,
-	audits repository.AuditLogRepository,
+	events repository.IActionEventRepository,
+	profiles repository.IInterestProfileRepository,
+	runs repository.IBatchRunRepository,
+	locks repository.IBatchLockRepository,
+	audits repository.IAuditLogRepository,
 	expiresIn time.Duration,
 ) *InterestBatchUsecase {
 	return &InterestBatchUsecase{
@@ -147,7 +147,7 @@ func (u *RankingBatchUsecase) Recalculate(ctx context.Context, input BatchInput)
 
 	// 指標更新とBatchRun成功更新は同じTxで扱う。
 	// 片方だけ成功すると「指標は更新済みなのにrunはrunningのまま」などの不整合が起きる。
-	err = u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.TxRepos) error {
+	err = u.tx.WithinTx(ctx, func(ctx context.Context, tx repository.ITxRepos) error {
 		if err := tx.ContentMetric().BulkUpsert(ctx, metrics); err != nil {
 			return err
 		}

@@ -11,7 +11,7 @@ import (
 )
 
 // 推薦モーダルの表示、クリック、クローズ履歴を扱うDB操作。
-type ModalDisplayLogRepository interface {
+type IModalDisplayLogRepository interface {
 	Create(ctx context.Context, log *model.ModalDisplayLog) error
 	FindByIDForActor(ctx context.Context, id uint64, userID *uint64, guestSessionID *uint64) (*model.ModalDisplayLog, error)
 	MarkClickedForActor(ctx context.Context, id uint64, userID *uint64, guestSessionID *uint64, clickedAt time.Time) error
@@ -23,7 +23,7 @@ type ModalDisplayLogRepository interface {
 }
 
 // 推薦モーダルを出さなかった理由を記録、取得するDB操作。
-type ModalBlockLogRepository interface {
+type IModalBlockLogRepository interface {
 	Create(ctx context.Context, log *model.ModalBlockLog) error
 	ListByActor(ctx context.Context, userID *uint64, guestSessionID *uint64, limit int) ([]*model.ModalBlockLog, error)
 	CountByReasonSince(ctx context.Context, reason entity.ModalBlockReason, since time.Time) (int64, error)
@@ -38,11 +38,11 @@ type GormModalBlockLogRepository struct {
 	baseRepo
 }
 
-func NewModalDisplayLogRepository(db *gorm.DB) ModalDisplayLogRepository {
+func NewModalDisplayLogRepository(db *gorm.DB) IModalDisplayLogRepository {
 	return &GormModalDisplayLogRepository{baseRepo{db}}
 }
 
-func NewModalBlockLogRepository(db *gorm.DB) ModalBlockLogRepository {
+func NewModalBlockLogRepository(db *gorm.DB) IModalBlockLogRepository {
 	return &GormModalBlockLogRepository{baseRepo{db}}
 }
 
