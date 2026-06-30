@@ -34,19 +34,19 @@ type IInterestProfileRepository interface {
 }
 
 type GormContentMetricRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormInterestProfileRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 func NewContentMetricRepository(db *gorm.DB) IContentMetricRepository {
-	return &GormContentMetricRepository{baseRepo{db}}
+	return &GormContentMetricRepository{db}
 }
 
 func NewInterestProfileRepository(db *gorm.DB) IInterestProfileRepository {
-	return &GormInterestProfileRepository{baseRepo{db}}
+	return &GormInterestProfileRepository{db}
 }
 
 // ランキング指標を新規作成または更新
@@ -64,6 +64,7 @@ func (r *GormContentMetricRepository) Upsert(ctx context.Context, metric *model.
 				"rating_count",
 				"good_count",
 				"bad_count",
+				"re_search_count",
 				"rating_avg",
 				"good_rate",
 				"bad_rate",
@@ -72,6 +73,7 @@ func (r *GormContentMetricRepository) Upsert(ctx context.Context, metric *model.
 				"modal_close_count",
 				"click_rate",
 				"save_rate",
+				"re_search_rate",
 				"modal_click_rate",
 				"modal_close_rate",
 				"period_start",

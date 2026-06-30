@@ -1,25 +1,13 @@
-package main
+package migrate
 
 import (
-	"log"
-
-	"coffee-ranker/db"
 	"coffee-ranker/model"
+
+	"gorm.io/gorm"
 )
 
-func main() {
-	database, err := db.NewDB()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer func() {
-		if err := db.CloseDB(database); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	if err := database.AutoMigrate(
+func AutoMigrate(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&model.User{},
 		&model.RefreshToken{},
 		&model.GuestSession{},
@@ -36,9 +24,5 @@ func main() {
 		&model.InterestProfile{},
 		&model.BatchRun{},
 		&model.AuditLog{},
-	); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println("Successfully migrated")
+	)
 }

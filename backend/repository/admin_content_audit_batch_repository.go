@@ -74,21 +74,21 @@ type AuditLogFilter struct {
 }
 
 type GormBatchRunRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormAuditLogRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 // バッチ実行履歴Repository
 func NewBatchRunRepository(db *gorm.DB) IBatchRunRepository {
-	return &GormBatchRunRepository{baseRepo{db}}
+	return &GormBatchRunRepository{db}
 }
 
 // 監査ログRepository
 func NewIAuditLogRepository(db *gorm.DB) IAuditLogRepository {
-	return &GormAuditLogRepository{baseRepo{db}}
+	return &GormAuditLogRepository{db}
 }
 
 // バッチ実行履歴を開始状態で作成。

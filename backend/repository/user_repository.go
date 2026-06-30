@@ -22,12 +22,12 @@ type IUserRepository interface {
 }
 
 type GormUserRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 // UserRepositoryを作成する。
 func NewUserRepository(db *gorm.DB) IUserRepository {
-	return &GormUserRepository{baseRepo{db}}
+	return &GormUserRepository{db}
 }
 
 // ユーザーを新規作成。

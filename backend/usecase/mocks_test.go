@@ -357,6 +357,7 @@ type fakeBeanRepo struct {
 	created              *model.Bean
 	updated              *model.Bean
 	byID                 *model.Bean
+	byIDs                map[uint64]*model.Bean
 	findErr              error
 	published            *model.Bean
 	publishedErr         error
@@ -411,9 +412,17 @@ func (f *fakeBeanRepo) SearchPublished(ctx context.Context, filter repository.Be
 	return []*model.Bean{{ID: 1}}, nil
 }
 func (f *fakeBeanRepo) FindByIDs(ctx context.Context, ids []uint64) ([]*model.Bean, error) {
+	// RecommendationUsecaseの興味プロフィール照合を検証できるよう、
+	// テストごとに指定した属性付きBeanを優先して返す。
 	f.ids = ids
 	beans := make([]*model.Bean, 0, len(ids))
 	for _, id := range ids {
+		if f.byIDs != nil {
+			if bean, ok := f.byIDs[id]; ok {
+				beans = append(beans, bean)
+				continue
+			}
+		}
 		beans = append(beans, &model.Bean{ID: id})
 	}
 	return beans, nil
@@ -434,6 +443,7 @@ type fakeArticleRepo struct {
 	created              *model.Article
 	updated              *model.Article
 	byID                 *model.Article
+	byIDs                map[uint64]*model.Article
 	findErr              error
 	published            *model.Article
 	publishedErr         error
@@ -502,9 +512,17 @@ func (f *fakeArticleRepo) SearchPublished(ctx context.Context, filter repository
 	return []*model.Article{{ID: 1}}, nil
 }
 func (f *fakeArticleRepo) FindByIDs(ctx context.Context, ids []uint64) ([]*model.Article, error) {
+	// RecommendationUsecaseのカテゴリ照合を検証できるよう、
+	// テストごとに指定した属性付きArticleを優先して返す。
 	f.ids = ids
 	articles := make([]*model.Article, 0, len(ids))
 	for _, id := range ids {
+		if f.byIDs != nil {
+			if article, ok := f.byIDs[id]; ok {
+				articles = append(articles, article)
+				continue
+			}
+		}
 		articles = append(articles, &model.Article{ID: id})
 	}
 	return articles, nil
@@ -618,6 +636,7 @@ type fakeActionEventRepo struct {
 	createErr         error
 	lastSearch        *string
 	lastSearchErr     error
+	recent            []*model.ActionEvent
 	contentAggregates []repository.ContentMetricAggregate
 	userInterest      []repository.InterestAggregate
 	guestInterest     []repository.InterestAggregate
@@ -632,7 +651,7 @@ func (f *fakeActionEventRepo) BulkCreate(ctx context.Context, events []*model.Ac
 	return nil
 }
 func (f *fakeActionEventRepo) FindRecentByActor(ctx context.Context, userID *uint64, guestSessionID *uint64, limit int) ([]*model.ActionEvent, error) {
-	return nil, nil
+	return f.recent, nil
 }
 func (f *fakeActionEventRepo) FindLastSearchHash(ctx context.Context, userID *uint64, guestSessionID *uint64) (*string, error) {
 	return f.lastSearch, f.lastSearchErr
@@ -668,6 +687,7 @@ func (f *fakeDedupRepo) Delete(ctx context.Context, key string) error         { 
 
 type fakeSavedRepo struct {
 	saved             bool
+	savedIDs          map[uint64]bool
 	saveOrRestoreItem *model.SavedItem
 	saveOrRestoreErr  error
 	removed           bool
@@ -696,6 +716,18 @@ func (f *fakeSavedRepo) ListActiveByUserID(ctx context.Context, userID uint64, l
 	f.listLimit = limit
 	f.listOffset = offset
 	return []*model.SavedItem{{UserID: userID}}, nil
+}
+func (f *fakeSavedRepo) ListActiveRankTargetIDsByUser(ctx context.Context, userID uint64, rankTargetIDs []uint64) (map[uint64]bool, error) {
+	if f.savedIDs != nil {
+		return f.savedIDs, nil
+	}
+	ids := make(map[uint64]bool)
+	if f.saved {
+		for _, id := range rankTargetIDs {
+			ids[id] = true
+		}
+	}
+	return ids, nil
 }
 func (f *fakeSavedRepo) ExistsActive(ctx context.Context, userID uint64, rankTargetID uint64) (bool, error) {
 	return f.saved, nil
@@ -769,6 +801,8 @@ func (f *fakeContentMetricRepo) LatestCalculatedAt(ctx context.Context) (*time.T
 
 type fakeInterestRepo struct {
 	bulk        []*model.InterestProfile
+	topUser     []*model.InterestProfile
+	topGuest    []*model.InterestProfile
 	deleteCount int64
 	deleteErr   error
 }
@@ -781,16 +815,18 @@ func (f *fakeInterestRepo) BulkUpsert(ctx context.Context, profiles []*model.Int
 	return nil
 }
 func (f *fakeInterestRepo) FindByUser(ctx context.Context, userID uint64) ([]*model.InterestProfile, error) {
-	return nil, nil
+	return f.topUser, nil
 }
 func (f *fakeInterestRepo) FindByGuestSession(ctx context.Context, guestSessionID uint64) ([]*model.InterestProfile, error) {
-	return nil, nil
+	return f.topGuest, nil
 }
 func (f *fakeInterestRepo) ListTopByUser(ctx context.Context, userID uint64, limit int) ([]*model.InterestProfile, error) {
-	return nil, nil
+	// RecommendationUsecaseがUserの興味プロフィールを本当に取得しているかをテストで確認する。
+	return f.topUser, nil
 }
 func (f *fakeInterestRepo) ListTopByGuest(ctx context.Context, guestSessionID uint64, limit int) ([]*model.InterestProfile, error) {
-	return nil, nil
+	// RecommendationUsecaseがGuestの興味プロフィールを本当に取得しているかをテストで確認する。
+	return f.topGuest, nil
 }
 func (f *fakeInterestRepo) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
 	return f.deleteCount, f.deleteErr

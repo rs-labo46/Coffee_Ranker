@@ -31,6 +31,7 @@ type ISavedItemRepository interface {
 	SaveOrRestore(ctx context.Context, userID uint64, rankTargetID uint64, now time.Time) (*model.SavedItem, error)
 	Remove(ctx context.Context, userID uint64, rankTargetID uint64, removedAt time.Time) error
 	ListActiveByUserID(ctx context.Context, userID uint64, limit int, offset int) ([]*model.SavedItem, error)
+	ListActiveRankTargetIDsByUser(ctx context.Context, userID uint64, rankTargetIDs []uint64) (map[uint64]bool, error)
 	ExistsActive(ctx context.Context, userID uint64, rankTargetID uint64) (bool, error)
 	CountActiveByTarget(ctx context.Context, rankTargetID uint64) (int64, error)
 }
@@ -46,15 +47,15 @@ type IRatingRepository interface {
 }
 
 type GormActionEventRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormSavedItemRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormRatingRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 // 行動ログからランキング指標を作るための集計結果。
@@ -68,6 +69,7 @@ type ContentMetricAggregate struct {
 	RatingCount          int64
 	GoodCount            int64
 	BadCount             int64
+	ReSearchCount        int64
 	ModalImpressionCount int64
 	ModalClickCount      int64
 	ModalCloseCount      int64
@@ -95,17 +97,17 @@ type InterestAggregate struct {
 
 // 行動ログRepositoryのGORM実装。
 func NewActionEventRepository(db *gorm.DB) IActionEventRepository {
-	return &GormActionEventRepository{baseRepo{db}}
+	return &GormActionEventRepository{db}
 }
 
 // 保存済みRepositoryのGORM実装。
 func NewSavedItemRepository(db *gorm.DB) ISavedItemRepository {
-	return &GormSavedItemRepository{baseRepo{db}}
+	return &GormSavedItemRepository{db}
 }
 
 // 評価RepositoryのGORM実装。
 func NewRatingRepository(db *gorm.DB) IRatingRepository {
-	return &GormRatingRepository{baseRepo{db}}
+	return &GormRatingRepository{db}
 }
 
 // 行動ログを1件保存。
@@ -166,10 +168,11 @@ func (r *GormActionEventRepository) AggregateContentMetrics(ctx context.Context,
 			COUNT(*) FILTER (WHERE event_type = ?) AS rating_count,
 			COUNT(*) FILTER (WHERE event_type = ? AND rating_score = 1) AS good_count,
 			COUNT(*) FILTER (WHERE event_type = ? AND rating_score = -1) AS bad_count,
+			COUNT(*) FILTER (WHERE event_type = ?) AS re_search_count,
 			COUNT(*) FILTER (WHERE event_type = ?) AS modal_impression_count,
 			COUNT(*) FILTER (WHERE event_type = ?) AS modal_click_count,
 			COUNT(*) FILTER (WHERE event_type = ?) AS modal_close_count
-		`, entity.EventTypeImpression, entity.EventTypeContentView, entity.EventTypeClick, entity.EventTypeStay, entity.EventTypeSave, entity.EventTypeRating, entity.EventTypeRating, entity.EventTypeRating, entity.EventTypeModalImpression, entity.EventTypeModalClick, entity.EventTypeModalClose).
+		`, entity.EventTypeImpression, entity.EventTypeContentView, entity.EventTypeClick, entity.EventTypeStay, entity.EventTypeSave, entity.EventTypeRating, entity.EventTypeRating, entity.EventTypeRating, entity.EventTypeReSearch, entity.EventTypeModalImpression, entity.EventTypeModalClick, entity.EventTypeModalClose).
 		Where("occurred_at >= ? AND occurred_at < ? AND rank_target_id IS NOT NULL", periodStart, periodEnd).
 		Group("rank_target_id").
 		Scan(&rows).Error
@@ -190,29 +193,105 @@ func (r *GormActionEventRepository) AggregateGuestInterest(ctx context.Context, 
 }
 
 // ユーザーまたはゲストの検索条件を興味スコアへ変換する共通の集計。
+// 1つの検索イベントにoriginとroast_levelなど複数条件が含まれる場合、
+// それぞれを別dimensionとして集計し、推薦ロジックで使える興味プロフィールを欠落させない。
 func (r *GormActionEventRepository) aggregateInterest(ctx context.Context, userID *uint64, guestSessionID *uint64, periodStart time.Time, periodEnd time.Time) ([]InterestAggregate, error) {
-	var rows []InterestAggregate
-	db := applyActorFilter(r.db.WithContext(ctx).Table("action_events"), userID, guestSessionID)
-	err := db.Select(`
+	actorWhere, actorArg, err := interestActorCondition(userID, guestSessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+WITH scoped AS (
+	SELECT
 		user_id,
 		guest_session_id,
-		CASE
-			WHEN search_origin IS NOT NULL THEN ?
-			WHEN search_roast_level IS NOT NULL THEN ?
-			WHEN search_category IS NOT NULL THEN ?
-		END AS dimension,
-		COALESCE(search_origin, CAST(search_roast_level AS TEXT), search_category) AS value,
-		COUNT(*)::float AS score_delta,
-		MAX(occurred_at) AS last_event_at
-	`, entity.InterestDimensionOrigin, entity.InterestDimensionRoastLevel, entity.InterestDimensionArticleCategory).
-		Where("occurred_at >= ? AND occurred_at < ?", periodStart, periodEnd).
-		Where("search_origin IS NOT NULL OR search_roast_level IS NOT NULL OR search_category IS NOT NULL").
-		Group("user_id, guest_session_id, dimension, value").
-		Scan(&rows).Error
+		search_origin,
+		search_roast_level,
+		search_acidity,
+		search_bitterness,
+		search_flavor,
+		search_aroma,
+		search_body,
+		search_category,
+		occurred_at
+	FROM action_events
+	WHERE occurred_at >= ?
+	  AND occurred_at < ?
+	  AND ` + actorWhere + `
+)
+SELECT user_id, guest_session_id, ? AS dimension, search_origin AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_origin IS NOT NULL AND search_origin <> ''
+GROUP BY user_id, guest_session_id, value
+UNION ALL
+SELECT user_id, guest_session_id, ? AS dimension, CAST(search_roast_level AS TEXT) AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_roast_level IS NOT NULL AND CAST(search_roast_level AS TEXT) <> ''
+GROUP BY user_id, guest_session_id, value
+UNION ALL
+SELECT user_id, guest_session_id, ? AS dimension, CAST(search_acidity AS TEXT) AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_acidity IS NOT NULL
+GROUP BY user_id, guest_session_id, value
+UNION ALL
+SELECT user_id, guest_session_id, ? AS dimension, CAST(search_bitterness AS TEXT) AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_bitterness IS NOT NULL
+GROUP BY user_id, guest_session_id, value
+UNION ALL
+SELECT user_id, guest_session_id, ? AS dimension, CAST(search_flavor AS TEXT) AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_flavor IS NOT NULL
+GROUP BY user_id, guest_session_id, value
+UNION ALL
+SELECT user_id, guest_session_id, ? AS dimension, CAST(search_aroma AS TEXT) AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_aroma IS NOT NULL
+GROUP BY user_id, guest_session_id, value
+UNION ALL
+SELECT user_id, guest_session_id, ? AS dimension, CAST(search_body AS TEXT) AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_body IS NOT NULL
+GROUP BY user_id, guest_session_id, value
+UNION ALL
+SELECT user_id, guest_session_id, ? AS dimension, search_category AS value, COUNT(*)::float AS score_delta, MAX(occurred_at) AS last_event_at
+FROM scoped
+WHERE search_category IS NOT NULL AND search_category <> ''
+GROUP BY user_id, guest_session_id, value
+`
+
+	var rows []InterestAggregate
+	err = r.db.WithContext(ctx).Raw(
+		query,
+		periodStart,
+		periodEnd,
+		actorArg,
+		entity.InterestDimensionOrigin,
+		entity.InterestDimensionRoastLevel,
+		entity.InterestDimensionAcidity,
+		entity.InterestDimensionBitterness,
+		entity.InterestDimensionFlavor,
+		entity.InterestDimensionAroma,
+		entity.InterestDimensionBody,
+		entity.InterestDimensionArticleCategory,
+	).Scan(&rows).Error
 	if err != nil {
 		return nil, mapDBError(err)
 	}
 	return rows, nil
+}
+
+// 興味集計ではUserまたはGuestSessionの片方だけに絞る。
+// Raw SQLに渡す条件文字列は固定文字列だけにし、値はplaceholderで渡す。
+func interestActorCondition(userID *uint64, guestSessionID *uint64) (string, uint64, error) {
+	if userID != nil && guestSessionID == nil {
+		return "user_id = ? AND guest_session_id IS NULL", *userID, nil
+	}
+	if userID == nil && guestSessionID != nil {
+		return "guest_session_id = ? AND user_id IS NULL", *guestSessionID, nil
+	}
+	return "", 0, entity.ErrInvalidInput
 }
 
 // 指定されたユーザーまたはゲストの特定イベント数を期間内で数える。
@@ -285,6 +364,29 @@ func (r *GormSavedItemRepository) ListActiveByUserID(ctx context.Context, userID
 		return nil, mapDBError(err)
 	}
 	return items, nil
+}
+
+// 指定ユーザーが保存済みのRankTargetIDを一括取得する。
+// 推薦候補の保存済み除外でExistsActiveを1件ずつ呼ぶN+1を避けるために使う。
+func (r *GormSavedItemRepository) ListActiveRankTargetIDsByUser(ctx context.Context, userID uint64, rankTargetIDs []uint64) (map[uint64]bool, error) {
+	ids := make(map[uint64]bool, len(rankTargetIDs))
+	if len(rankTargetIDs) == 0 {
+		return ids, nil
+	}
+
+	var savedIDs []uint64
+	err := r.db.WithContext(ctx).
+		Model(&model.SavedItem{}).
+		Where("user_id = ? AND rank_target_id IN ? AND removed_at IS NULL", userID, rankTargetIDs).
+		Pluck("rank_target_id", &savedIDs).Error
+	if err != nil {
+		return nil, mapDBError(err)
+	}
+
+	for _, id := range savedIDs {
+		ids[id] = true
+	}
+	return ids, nil
 }
 
 // 指定ユーザーが対象を現在保存しているか確認。

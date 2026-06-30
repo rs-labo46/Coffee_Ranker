@@ -69,8 +69,8 @@ func TestPersonalizationScenario_InterestBatchSeparatesUserInterests(t *testing.
 }
 
 // Userごとに保存済み除外が分かれることを確認。
-// RecommendationUsecaseは現時点では興味プロフィールによる再スコアリングまでは行わず、
-// ランキング候補をベースにUserの保存済みRankTargetを除外する。
+// RecommendationUsecaseはInterestProfileで候補を再スコアリングするが、
+// User向け推薦では保存済みRankTargetを必ず除外する。
 // そのため、User Aでは保存済みなので除外、User Bでは未保存なので表示という個人差を確認する。
 func TestPersonalizationScenario_RecommendationSeparatesSavedExclusionByUser(t *testing.T) {
 	ctx := context.Background()
@@ -85,7 +85,7 @@ func TestPersonalizationScenario_RecommendationSeparatesSavedExclusionByUser(t *
 		userA: {targetID: true},
 		userB: {targetID: false},
 	}}
-	u := NewRecommendationUsecase(metrics, &fakeInterestRepo{}, saved)
+	u := NewRecommendationUsecase(metrics, &fakeInterestRepo{}, saved, &fakeActionEventRepo{}, &fakeBeanRepo{}, &fakeArticleRepo{})
 
 	// User AはtargetIDを保存済みなので、推薦候補から除外される。
 	resultA, err := u.List(ctx, RecommendationInput{Actor: Actor{UserID: &userA}, Page: Page{Limit: 10}})
@@ -99,6 +99,65 @@ func TestPersonalizationScenario_RecommendationSeparatesSavedExclusionByUser(t *
 	assertNoError(t, err)
 	if len(resultB) != 1 || resultB[0].RankTargetID != targetID {
 		t.Fatalf("user B recommendations = %+v, want target %d", resultB, targetID)
+	}
+}
+
+// Userごとの興味プロフィールによって、同じランキング候補でも推薦順が変わることを確認。
+// 以前は保存済み除外だけを見ていたため、InterestProfileを使わない業務ロジック漏れを検出できなかった。
+func TestPersonalizationScenario_RecommendationUsesUserInterestProfile(t *testing.T) {
+	ctx := context.Background()
+	userA := uint64(101)
+	userB := uint64(202)
+	ethiopia := "Ethiopia"
+	brazil := "Brazil"
+
+	metrics := &fakeContentMetricRepo{ranking: []*model.ContentMetric{
+		{
+			RankTargetID: 1,
+			Score:        20,
+			RankTarget: model.RankTarget{
+				ID:          1,
+				ContentType: entity.ContentTypeBean,
+				ContentID:   101,
+			},
+		},
+		{
+			RankTargetID: 2,
+			Score:        20,
+			RankTarget: model.RankTarget{
+				ID:          2,
+				ContentType: entity.ContentTypeBean,
+				ContentID:   202,
+			},
+		},
+	}}
+
+	interests := &personalizationInterestRepo{topByUserID: map[uint64][]*model.InterestProfile{
+		userA: {
+			{UserID: &userA, Dimension: entity.InterestDimensionOrigin, Value: "Ethiopia", Score: 15},
+		},
+		userB: {
+			{UserID: &userB, Dimension: entity.InterestDimensionOrigin, Value: "Brazil", Score: 15},
+		},
+	}}
+
+	beans := &fakeBeanRepo{byIDs: map[uint64]*model.Bean{
+		101: {ID: 101, Origin: &ethiopia, RoastLevel: entity.RoastLevelLight},
+		202: {ID: 202, Origin: &brazil, RoastLevel: entity.RoastLevelDark},
+	}}
+
+	u := NewRecommendationUsecase(metrics, interests, &personalizationSavedRepo{}, &fakeActionEventRepo{}, beans, &fakeArticleRepo{})
+
+	resultA, err := u.List(ctx, RecommendationInput{Actor: Actor{UserID: &userA}, Page: Page{Limit: 10}})
+	assertNoError(t, err)
+	if len(resultA) != 2 || resultA[0].RankTargetID != 1 {
+		t.Fatalf("user A recommendations = %+v, want Ethiopia target first", resultA)
+	}
+
+	resultB, err := u.List(ctx, RecommendationInput{Actor: Actor{UserID: &userB}, Page: Page{Limit: 10}})
+	assertNoError(t, err)
+	if len(resultB) != 2 || resultB[0].RankTargetID != 2 {
+		t.Fatalf("user B recommendations = %+v, want Brazil target first", resultB)
 	}
 }
 
@@ -167,11 +226,42 @@ func (f *personalizationActionEventRepo) AggregateUserInterest(ctx context.Conte
 	return f.userInterestByUserID[userID], nil
 }
 
+// fakeInterestRepoを拡張し、UserIDごとに異なる上位InterestProfileを返せるようにする。
+// RecommendationUsecaseがactorごとの興味を本当に使って推薦順を変えているかを確認するため。
+type personalizationInterestRepo struct {
+	fakeInterestRepo
+	topByUserID map[uint64][]*model.InterestProfile
+}
+
+func (f *personalizationInterestRepo) ListTopByUser(ctx context.Context, userID uint64, limit int) ([]*model.InterestProfile, error) {
+	if f.topByUserID == nil {
+		return nil, nil
+	}
+	return f.topByUserID[userID], nil
+}
+
 // fakeSavedRepoを拡張し、UserIDとRankTargetIDの組み合わせごとに保存済み状態を返せるようにする。
 // User Aでは除外されるがUser Bでは除外されない、という個人差をテスト。
 type personalizationSavedRepo struct {
 	fakeSavedRepo
 	savedByUserAndTarget map[uint64]map[uint64]bool
+}
+
+func (f *personalizationSavedRepo) ListActiveRankTargetIDsByUser(ctx context.Context, userID uint64, rankTargetIDs []uint64) (map[uint64]bool, error) {
+	ids := make(map[uint64]bool)
+	if f.savedByUserAndTarget == nil {
+		return ids, nil
+	}
+	savedByTarget, ok := f.savedByUserAndTarget[userID]
+	if !ok {
+		return ids, nil
+	}
+	for _, id := range rankTargetIDs {
+		if savedByTarget[id] {
+			ids[id] = true
+		}
+	}
+	return ids, nil
 }
 
 func (f *personalizationSavedRepo) ExistsActive(ctx context.Context, userID uint64, rankTargetID uint64) (bool, error) {

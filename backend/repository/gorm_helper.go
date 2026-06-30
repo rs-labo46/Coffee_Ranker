@@ -9,10 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type baseRepo struct {
-	db *gorm.DB
-}
-
 // GORMやDB制約由来のエラーをアプリ共通エラーへ変換。
 func mapDBError(err error) error {
 	if err == nil {

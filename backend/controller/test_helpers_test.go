@@ -371,6 +371,9 @@ func (r *fakeSavedRepo) ListActiveByUserID(ctx context.Context, userID uint64, l
 }
 
 // 保存済み除外やモーダル表示確認では未保存扱いにする。
+func (r *fakeSavedRepo) ListActiveRankTargetIDsByUser(ctx context.Context, userID uint64, rankTargetIDs []uint64) (map[uint64]bool, error) {
+	return map[uint64]bool{}, nil
+}
 func (r *fakeSavedRepo) ExistsActive(ctx context.Context, userID uint64, rankTargetID uint64) (bool, error) {
 	return false, nil
 }

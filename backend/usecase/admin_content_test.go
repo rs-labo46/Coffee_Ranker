@@ -59,7 +59,7 @@ func TestAdminBeanUsecasePublish_UpdatesBeanAndRankTargetInTx(t *testing.T) {
 	rankTargets := &fakeRankTargetRepo{findOrCreateTarget: &model.RankTarget{ID: 77, ContentType: entity.ContentTypeBean, ContentID: 5}}
 	audits := &fakeAuditRepo{}
 	tx := &fakeTxManager{repos: fakeTxRepos{bean: beans, rank: rankTargets}}
-	u := NewAdminBeanUsecase(beans, rankTargets, audits, tx)
+	u := NewAdminBeanUsecase(beans, audits, tx)
 
 	err := u.Publish(ctx, 5, AdminMeta{AdminUserID: 10})
 	assertNoError(t, err)

@@ -260,6 +260,7 @@ type ContentMetric struct {
 	RatingCount          int64      `json:"rating_count" gorm:"not null;default:0"`
 	GoodCount            int64      `json:"good_count" gorm:"not null;default:0"`
 	BadCount             int64      `json:"bad_count" gorm:"not null;default:0"`
+	ReSearchCount        int64      `json:"re_search_count" gorm:"not null;default:0"`
 	RatingAvg            float64    `json:"rating_avg" gorm:"not null;default:0"`
 	GoodRate             float64    `json:"good_rate" gorm:"not null;default:0"`
 	BadRate              float64    `json:"bad_rate" gorm:"not null;default:0"`
@@ -268,6 +269,7 @@ type ContentMetric struct {
 	ModalCloseCount      int64      `json:"modal_close_count" gorm:"not null;default:0"`
 	ClickRate            float64    `json:"click_rate" gorm:"not null;default:0"`
 	SaveRate             float64    `json:"save_rate" gorm:"not null;default:0"`
+	ReSearchRate         float64    `json:"re_search_rate" gorm:"not null;default:0"`
 	ModalClickRate       float64    `json:"modal_click_rate" gorm:"not null;default:0"`
 	ModalCloseRate       float64    `json:"modal_close_rate" gorm:"not null;default:0"`
 	PeriodStart          time.Time  `json:"period_start" gorm:"not null;index"`

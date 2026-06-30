@@ -46,7 +46,6 @@ type AdminMeta struct {
 // RankTarget更新はPublish/Unpublish内でTxRepos経由で行う。
 func NewAdminBeanUsecase(
 	beans repository.IBeanRepository,
-	rankTargets repository.IRankTargetRepository,
 	audits repository.IAuditLogRepository,
 	tx TxManager,
 ) *AdminBeanUsecase {
@@ -61,7 +60,6 @@ func NewAdminBeanUsecase(
 // RankTarget更新はPublish/Unpublish内でTxRepos経由で行う。
 func NewAdminArticleUsecase(
 	articles repository.IArticleRepository,
-	rankTargets repository.IRankTargetRepository,
 	audits repository.IAuditLogRepository,
 	tx TxManager,
 ) *AdminArticleUsecase {

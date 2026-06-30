@@ -31,19 +31,19 @@ type IModalBlockLogRepository interface {
 }
 
 type GormModalDisplayLogRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormModalBlockLogRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 func NewModalDisplayLogRepository(db *gorm.DB) IModalDisplayLogRepository {
-	return &GormModalDisplayLogRepository{baseRepo{db}}
+	return &GormModalDisplayLogRepository{db}
 }
 
 func NewModalBlockLogRepository(db *gorm.DB) IModalBlockLogRepository {
-	return &GormModalBlockLogRepository{baseRepo{db}}
+	return &GormModalBlockLogRepository{db}
 }
 
 // 推薦モーダルの表示履歴を保存。

@@ -19,12 +19,12 @@ type IGuestSessionRepository interface {
 }
 
 type GormGuestSessionRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 // GuestSessionRepositoryを作成する。
 func NewGuestSessionRepository(db *gorm.DB) IGuestSessionRepository {
-	return &GormGuestSessionRepository{baseRepo{db}}
+	return &GormGuestSessionRepository{db}
 }
 
 // ゲストセッションを新規作成。

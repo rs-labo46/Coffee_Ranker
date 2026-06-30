@@ -23,7 +23,11 @@ func TestRankingControllerListInvalidContentType(t *testing.T) {
 
 // TOPランキングのlimitが範囲内ならUsecaseへ渡され、200を返すことを確認。
 func TestRankingControllerTopSuccess(t *testing.T) {
-	uc := usecase.NewRankingUsecase(&fakeMetricRepo{}, &fakeRankTargetRepo{}, &fakeBeanRepo{}, &fakeArticleRepo{})
+	uc := usecase.NewRankingUsecase(
+		&fakeMetricRepo{},
+		&fakeBeanRepo{},
+		&fakeArticleRepo{},
+	)
 	controller := NewRankingController(uc, validator.NewRankingValidator())
 	_, c, rec := newTestContext(http.MethodGet, "/ranking/top?limit=5", "")
 
@@ -48,7 +52,12 @@ func TestRecommendationControllerListRequiresActor(t *testing.T) {
 
 // 推薦一覧の正常入力でGuest actorをUsecaseへ渡し、200を返すことを確認。
 func TestRecommendationControllerListGuestSuccess(t *testing.T) {
-	uc := usecase.NewRecommendationUsecase(&fakeMetricRepo{}, &fakeInterestRepo{}, &fakeSavedRepo{})
+	uc := usecase.NewRecommendationUsecase(&fakeMetricRepo{},
+		&fakeInterestRepo{},
+		&fakeSavedRepo{},
+		&fakeEventRepo{},
+		&fakeBeanRepo{},
+		&fakeArticleRepo{})
 	controller := NewRecommendationController(uc, validator.NewRecommendationValidator())
 	_, c, rec := newTestContext(http.MethodGet, "/recommendations?content_type=bean&limit=5", "")
 	setGuest(c, 11)

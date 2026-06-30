@@ -24,12 +24,12 @@ type IRefreshTokenRepository interface {
 }
 
 type GormRefreshTokenRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 // RefreshTokenRepositoryを作成する。
 func NewRefreshTokenRepository(db *gorm.DB) IRefreshTokenRepository {
-	return &GormRefreshTokenRepository{baseRepo{db}}
+	return &GormRefreshTokenRepository{db}
 }
 
 // hash化済みRefreshTokenに一致するレコードを取得。
@@ -110,13 +110,15 @@ func (r *GormRefreshTokenRepository) RevokeByFamilyID(ctx context.Context, famil
 }
 
 // 指定ユーザーのRefreshTokenをすべて失効。
+// 全端末logoutでは、すでに全RefreshTokenが失効済みでもtoken_version更新は続ける必要がある。
+// そのため、更新件数0件はエラーにせず、DBエラーだけを返す。
 func (r *GormRefreshTokenRepository) RevokeByUserID(ctx context.Context, userID uint64, revokedAt time.Time) error {
 	res := r.db.WithContext(ctx).
 		Model(&model.RefreshToken{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Update("revoked_at", revokedAt)
 
-	return mapRowsAffected(res.RowsAffected, res.Error)
+	return mapDBError(res.Error)
 }
 
 // 有効期限切れのRefreshTokenを削除。

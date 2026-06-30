@@ -13,12 +13,11 @@ import (
 // ランキング用の集計バッチ。
 // action_eventsを集計し、content_metricsにランキング指標として保存。
 type RankingBatchUsecase struct {
-	events  repository.IActionEventRepository
-	metrics repository.IContentMetricRepository
-	runs    repository.IBatchRunRepository
-	locks   repository.IBatchLockRepository
-	audits  repository.IAuditLogRepository
-	tx      TxManager
+	events repository.IActionEventRepository
+	runs   repository.IBatchRunRepository
+	locks  repository.IBatchLockRepository
+	audits repository.IAuditLogRepository
+	tx     TxManager
 }
 
 // 興味プロフィール用の集計バッチ。
@@ -54,19 +53,17 @@ type InterestBatchInput struct {
 // RankingBatchUsecase。
 func NewRankingBatchUsecase(
 	events repository.IActionEventRepository,
-	metrics repository.IContentMetricRepository,
 	runs repository.IBatchRunRepository,
 	locks repository.IBatchLockRepository,
 	audits repository.IAuditLogRepository,
 	tx TxManager,
 ) *RankingBatchUsecase {
 	return &RankingBatchUsecase{
-		events:  events,
-		metrics: metrics,
-		runs:    runs,
-		locks:   locks,
-		audits:  audits,
-		tx:      tx,
+		events: events,
+		runs:   runs,
+		locks:  locks,
+		audits: audits,
+		tx:     tx,
 	}
 }
 
@@ -314,6 +311,7 @@ func contentMetricFromAggregate(aggregate repository.ContentMetricAggregate, per
 	saveRate := rate(aggregate.SaveCount, aggregate.ContentViewCount)
 	modalClickRate := rate(aggregate.ModalClickCount, aggregate.ModalImpressionCount)
 	modalCloseRate := rate(aggregate.ModalCloseCount, aggregate.ModalImpressionCount)
+	reSearchRate := rate(aggregate.ReSearchCount, aggregate.ContentViewCount)
 	goodRate := rate(aggregate.GoodCount, aggregate.RatingCount)
 	badRate := rate(aggregate.BadCount, aggregate.RatingCount)
 
@@ -321,14 +319,16 @@ func contentMetricFromAggregate(aggregate repository.ContentMetricAggregate, per
 	// 例: Good 8件、Bad 2件なら (8 - 2) / 10 = 0.6。
 	ratingAvg := ratingAverage(aggregate.GoodCount, aggregate.BadCount, aggregate.RatingCount)
 
-	// クリック・保存・Good評価・モーダルクリックを加点し、Bad評価・モーダルcloseを減点する。
+	// クリック・保存・Good評価・モーダルクリックを加点し、Bad評価・モーダルclose・再検索率を減点する。
+	// 再検索率は、そのコンテンツ閲覧後に条件を変えて探し直された可能性を低評価として扱う。
 	score := clickRate*30 +
 		saveRate*25 +
 		goodRate*20 +
 		modalClickRate*10 +
 		float64(aggregate.StayTotalMs)/1000*0.01 -
 		badRate*15 -
-		modalCloseRate*10
+		modalCloseRate*10 -
+		reSearchRate*10
 
 	return &model.ContentMetric{
 		RankTargetID:         aggregate.RankTargetID,
@@ -341,6 +341,7 @@ func contentMetricFromAggregate(aggregate repository.ContentMetricAggregate, per
 		RatingCount:          aggregate.RatingCount,
 		GoodCount:            aggregate.GoodCount,
 		BadCount:             aggregate.BadCount,
+		ReSearchCount:        aggregate.ReSearchCount,
 		RatingAvg:            ratingAvg,
 		GoodRate:             goodRate,
 		BadRate:              badRate,
@@ -349,6 +350,7 @@ func contentMetricFromAggregate(aggregate repository.ContentMetricAggregate, per
 		ModalCloseCount:      aggregate.ModalCloseCount,
 		ClickRate:            clickRate,
 		SaveRate:             saveRate,
+		ReSearchRate:         reSearchRate,
 		ModalClickRate:       modalClickRate,
 		ModalCloseRate:       modalCloseRate,
 		PeriodStart:          periodStart,

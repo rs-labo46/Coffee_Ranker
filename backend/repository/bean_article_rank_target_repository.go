@@ -33,19 +33,19 @@ type IRankTargetRepository interface {
 }
 
 type GormBeanRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormArticleRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormBeanArticleRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 type GormRankTargetRepository struct {
-	baseRepo
+	db *gorm.DB
 }
 
 // Bean検索で使う絞り込み条件、並び順、ページング条件。
@@ -73,18 +73,18 @@ type ArticleSearchFilter struct {
 }
 
 func NewBeanRepository(db *gorm.DB) IBeanRepository {
-	return &GormBeanRepository{baseRepo{db}}
+	return &GormBeanRepository{db}
 }
 
 func NewArticleRepository(db *gorm.DB) IArticleRepository {
-	return &GormArticleRepository{baseRepo{db}}
+	return &GormArticleRepository{db}
 }
 
 func NewBeanArticleRepository(db *gorm.DB) IBeanArticleRepository {
-	return &GormBeanArticleRepository{baseRepo{db}}
+	return &GormBeanArticleRepository{db}
 }
 func NewRankTargetRepository(db *gorm.DB) IRankTargetRepository {
-	return &GormRankTargetRepository{baseRepo{db}}
+	return &GormRankTargetRepository{db}
 }
 
 // Beanを新規作成。

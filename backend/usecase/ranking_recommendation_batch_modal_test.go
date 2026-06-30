@@ -19,7 +19,7 @@ func TestRankingUsecaseList_SplitsMetricTargetsAndFetchesEntities(t *testing.T) 
 	}}
 	beans := &fakeBeanRepo{}
 	articles := &fakeArticleRepo{}
-	u := NewRankingUsecase(metrics, &fakeRankTargetRepo{}, beans, articles)
+	u := NewRankingUsecase(metrics, beans, articles)
 
 	result, err := u.List(ctx, nil, Page{})
 	assertNoError(t, err)
@@ -37,7 +37,7 @@ func TestRecommendationUsecaseList_UserFiltersSavedMetrics(t *testing.T) {
 	ctx := context.Background()
 	metrics := &fakeContentMetricRepo{ranking: []*model.ContentMetric{{RankTargetID: 1}, {RankTargetID: 2}}}
 	saved := &fakeSavedRepo{saved: true}
-	u := NewRecommendationUsecase(metrics, &fakeInterestRepo{}, saved)
+	u := NewRecommendationUsecase(metrics, &fakeInterestRepo{}, saved, &fakeActionEventRepo{}, &fakeBeanRepo{}, &fakeArticleRepo{})
 	userID := uint64(1)
 
 	result, err := u.List(ctx, RecommendationInput{Actor: Actor{UserID: &userID}, Page: Page{Limit: 10}})
@@ -50,6 +50,150 @@ func TestRecommendationUsecaseList_UserFiltersSavedMetrics(t *testing.T) {
 	}
 }
 
+// 興味プロフィールとBean属性が一致した候補のscoreが加算され、推薦順が上がることを確認。
+// 以前はテストが保存済み除外しか見ておらず、InterestProfileを使わない実装漏れを検出できなかった。
+func TestRecommendationUsecaseList_UsesInterestProfilesToRescoreBeanCandidates(t *testing.T) {
+	ctx := context.Background()
+	userID := uint64(1)
+	ethiopia := "Ethiopia"
+	brazil := "Brazil"
+
+	metrics := &fakeContentMetricRepo{ranking: []*model.ContentMetric{
+		{
+			RankTargetID: 1,
+			Score:        10,
+			RankTarget: model.RankTarget{
+				ID:          1,
+				ContentType: entity.ContentTypeBean,
+				ContentID:   101,
+			},
+		},
+		{
+			RankTargetID: 2,
+			Score:        20,
+			RankTarget: model.RankTarget{
+				ID:          2,
+				ContentType: entity.ContentTypeBean,
+				ContentID:   202,
+			},
+		},
+	}}
+
+	interests := &fakeInterestRepo{
+		topUser: []*model.InterestProfile{
+			{
+				UserID:    &userID,
+				Dimension: entity.InterestDimensionOrigin,
+				Value:     "Ethiopia",
+				Score:     30,
+			},
+		},
+	}
+
+	beans := &fakeBeanRepo{
+		byIDs: map[uint64]*model.Bean{
+			101: {ID: 101, Origin: &ethiopia, RoastLevel: entity.RoastLevelLight},
+			202: {ID: 202, Origin: &brazil, RoastLevel: entity.RoastLevelDark},
+		},
+	}
+
+	u := NewRecommendationUsecase(
+		metrics,
+		interests,
+		&fakeSavedRepo{},
+		&fakeActionEventRepo{},
+		beans,
+		&fakeArticleRepo{},
+	)
+
+	result, err := u.List(ctx, RecommendationInput{
+		Actor: Actor{UserID: &userID},
+		Page:  Page{Limit: 10},
+	})
+	assertNoError(t, err)
+
+	if len(result) != 2 {
+		t.Fatalf("recommendations = %d, want 2", len(result))
+	}
+	if result[0].RankTargetID != 1 {
+		t.Fatalf("first rank_target_id = %d, want 1", result[0].RankTargetID)
+	}
+	if result[0].Score <= result[1].Score {
+		t.Fatalf("scores = %f, %f, want personalized first score higher", result[0].Score, result[1].Score)
+	}
+}
+
+// 興味プロフィールに一致した候補には、フロント表示用の推薦理由DTOが付くことを確認。
+// score順だけを見るテストでは、理由生成の実装漏れを検出できないため。
+func TestRecommendationUsecaseList_ReturnsRecommendationReasons(t *testing.T) {
+	ctx := context.Background()
+	userID := uint64(1)
+	ethiopia := "Ethiopia"
+
+	metrics := &fakeContentMetricRepo{ranking: []*model.ContentMetric{
+		{
+			RankTargetID: 1,
+			Score:        10,
+			RankTarget: model.RankTarget{
+				ID:          1,
+				ContentType: entity.ContentTypeBean,
+				ContentID:   101,
+			},
+		},
+	}}
+	interests := &fakeInterestRepo{topUser: []*model.InterestProfile{
+		{UserID: &userID, Dimension: entity.InterestDimensionOrigin, Value: "Ethiopia", Score: 3},
+	}}
+	beans := &fakeBeanRepo{byIDs: map[uint64]*model.Bean{
+		101: {ID: 101, Origin: &ethiopia, RoastLevel: entity.RoastLevelLight},
+	}}
+
+	u := NewRecommendationUsecase(metrics, interests, &fakeSavedRepo{}, &fakeActionEventRepo{}, beans, &fakeArticleRepo{})
+
+	result, err := u.List(ctx, RecommendationInput{Actor: Actor{UserID: &userID}, Page: Page{Limit: 10}})
+	assertNoError(t, err)
+
+	if len(result) != 1 {
+		t.Fatalf("recommendations = %d, want 1", len(result))
+	}
+	if len(result[0].Reasons) != 1 {
+		t.Fatalf("reasons = %+v, want one origin reason", result[0].Reasons)
+	}
+	if result[0].Reasons[0].Dimension != entity.InterestDimensionOrigin || result[0].Reasons[0].Value != "Ethiopia" {
+		t.Fatalf("reason = %+v, want Ethiopia origin reason", result[0].Reasons[0])
+	}
+	if result[0].InterestScore <= 0 {
+		t.Fatalf("interest score = %f, want positive", result[0].InterestScore)
+	}
+}
+
+// 直近閲覧済みのRankTargetを推薦候補から除外することを確認。
+// これにより、閲覧済み除外用に注入したActionEventRepositoryが使われない実装漏れを防ぐ。
+func TestRecommendationUsecaseList_ExcludesRecentlyViewedTargets(t *testing.T) {
+	ctx := context.Background()
+	userID := uint64(1)
+	viewedTargetID := uint64(1)
+
+	metrics := &fakeContentMetricRepo{ranking: []*model.ContentMetric{
+		{RankTargetID: 1, Score: 20},
+		{RankTargetID: 2, Score: 10},
+	}}
+	events := &fakeActionEventRepo{recent: []*model.ActionEvent{
+		{EventType: entity.EventTypeContentView, RankTargetID: &viewedTargetID},
+	}}
+	u := NewRecommendationUsecase(metrics, &fakeInterestRepo{}, &fakeSavedRepo{}, events, &fakeBeanRepo{}, &fakeArticleRepo{})
+
+	result, err := u.List(ctx, RecommendationInput{Actor: Actor{UserID: &userID}, Page: Page{Limit: 10}})
+	assertNoError(t, err)
+
+	if len(result) != 1 {
+		t.Fatalf("recommendations = %d, want viewed target excluded", len(result))
+	}
+	if result[0].RankTargetID != 2 {
+		t.Fatalf("rank_target_id = %d, want 2", result[0].RankTargetID)
+	}
+}
+
 // ランキングバッチで、行動ログ集計結果をContentMetricへ保存し、BatchRun成功更新をTx内で行い、lock解放と監査ログ作成も行うことを確認。
 func TestRankingBatchUsecaseRecalculate_SavesMetricsAndMarksRunSuccessInTx(t *testing.T) {
 	ctx := context.Background()
@@ -59,7 +203,7 @@ func TestRankingBatchUsecaseRecalculate_SavesMetricsAndMarksRunSuccessInTx(t *te
 	locks := &fakeBatchLockRepo{locked: true}
 	audits := &fakeAuditRepo{}
 	tx := &fakeTxManager{repos: fakeTxRepos{metric: metrics, run: runs}}
-	u := NewRankingBatchUsecase(events, metrics, runs, locks, audits, tx)
+	u := NewRankingBatchUsecase(events, runs, locks, audits, tx)
 
 	run, err := u.Recalculate(ctx, BatchInput{Owner: "tester"})
 	assertNoError(t, err)
