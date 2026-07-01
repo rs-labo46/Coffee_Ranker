@@ -1,18 +1,19 @@
 name: coffee-ranker
+
 services:
   db:
     image: postgres:16
     restart: always
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_USER: coffee
+      POSTGRES_PASSWORD: coffeepassword
       POSTGRES_DB: mydb
     ports:
       - "5435:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U myuser -d mydb -h localhost -p 5432"]
+      test: ["CMD-SHELL", "pg_isready -U coffee -d mydb -h localhost -p 5432"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -22,7 +23,7 @@ services:
     container_name: coffee-ranker-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "26379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -37,25 +38,27 @@ services:
     restart: always
     ports:
       - "8080:8080"
-    env_file:
-      - ./.env
     environment:
       PORT: "8080"
       GO_ENV: "dev"
 
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_USER: coffee
+      POSTGRES_PASSWORD: coffeepassword
       POSTGRES_DB: mydb
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
+      POSTGRES_SSLMODE: disable
 
-      # Redis（RateLimit/キャッシュ用）
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      REDIS_DB: "0"
 
       JWT_SECRET: ${JWT_SECRET}
       API_DOMAIN: ${API_DOMAIN}
       FE_URL: ${FE_URL}
+
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
 
     depends_on:
       db:

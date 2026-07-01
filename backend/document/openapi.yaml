@@ -1,0 +1,2658 @@
+openapi: 3.0.3
+info:
+  title: coffee-ranker API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      summary: Health
+      tags:
+        - health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /ready:
+    get:
+      summary: Ready
+      tags:
+        - health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/csrf:
+    get:
+      summary: Issue CSRF token
+      tags:
+        - auth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CSRFResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /guest-session:
+    post:
+      summary: Get or create guest session
+      tags:
+        - guest-session
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestSessionResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: X-Guest-Session-Key
+          in: header
+          required: false
+          schema:
+            type: string
+  /auth/signup:
+    post:
+      summary: Signup
+      tags:
+        - auth
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+  /auth/login:
+    post:
+      summary: Login
+      tags:
+        - auth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      tags:
+        - auth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - csrfHeader: []
+          csrfCookie: []
+  /auth/logout:
+    post:
+      summary: Logout current family
+      tags:
+        - auth
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /auth/logout-all:
+    post:
+      summary: Logout all devices
+      tags:
+        - auth
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /auth/me:
+    get:
+      summary: Me
+      tags:
+        - auth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
+  /beans:
+    get:
+      summary: List beans
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+  /beans/{id}:
+    get:
+      summary: Get bean
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+  /beans/{id}/articles:
+    get:
+      summary: List related articles for bean
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BeanArticle"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+  /articles:
+    get:
+      summary: List articles
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+  /articles/{slug}:
+    get:
+      summary: Get article by slug
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+  /articles/id/{id}:
+    get:
+      summary: Get article by id
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+  /articles/id/{id}/beans:
+    get:
+      summary: List related beans for article
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BeanArticle"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - bearerAuth: []
+  /search/beans:
+    get:
+      summary: Search beans
+      tags:
+        - search
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: origin
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: roast_level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - light
+              - medium
+              - dark
+        - name: acidity
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: bitterness
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: flavor
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: aroma
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: body
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - score
+              - newest
+              - popular
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - {}
+        - bearerAuth: []
+        - guestSessionCookie: []
+  /search/articles:
+    get:
+      summary: Search articles
+      tags:
+        - search
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - brewing
+              - roast
+              - beans
+              - recipe
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - score
+              - newest
+              - popular
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - {}
+        - bearerAuth: []
+        - guestSessionCookie: []
+  /rankings:
+    get:
+      summary: List rankings
+      tags:
+        - ranking
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RankingResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: content_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - bean
+              - article
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+  /rankings/top:
+    get:
+      summary: Top rankings
+      tags:
+        - ranking
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentMetric"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+  /recommendations:
+    get:
+      summary: List recommendations
+      tags:
+        - recommendation
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecommendationItem"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: content_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - bean
+              - article
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - {}
+        - bearerAuth: []
+        - guestSessionCookie: []
+  /events:
+    post:
+      summary: Record event
+      tags:
+        - event
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionEvent"
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventRequest"
+      security:
+        - csrfHeader: []
+          csrfCookie: []
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+        - guestSessionCookie: []
+          csrfHeader: []
+          csrfCookie: []
+  /saved:
+    get:
+      summary: List saved items
+      tags:
+        - saved
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavedItem"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - bearerAuth: []
+    post:
+      summary: Save item
+      tags:
+        - saved
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedItem"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /saved/{rank_target_id}:
+    get:
+      summary: Check saved item
+      tags:
+        - saved
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedExistsResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: rank_target_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Remove saved item
+      tags:
+        - saved
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: rank_target_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /ratings:
+    post:
+      summary: Rate item
+      tags:
+        - rating
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rating"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RatingRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /ratings/{rank_target_id}:
+    get:
+      summary: Get rating
+      tags:
+        - rating
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rating"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: rank_target_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Delete rating
+      tags:
+        - rating
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: rank_target_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /modals:
+    post:
+      summary: Show modal
+      tags:
+        - modal
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModalDisplayLog"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShowModalRequest"
+      security:
+        - csrfHeader: []
+          csrfCookie: []
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+        - guestSessionCookie: []
+          csrfHeader: []
+          csrfCookie: []
+  /modals/click:
+    post:
+      summary: Click modal
+      tags:
+        - modal
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModalActionRequest"
+      security:
+        - csrfHeader: []
+          csrfCookie: []
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+        - guestSessionCookie: []
+          csrfHeader: []
+          csrfCookie: []
+  /modals/close:
+    post:
+      summary: Close modal
+      tags:
+        - modal
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModalActionRequest"
+      security:
+        - csrfHeader: []
+          csrfCookie: []
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+        - guestSessionCookie: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/beans:
+    post:
+      summary: Admin create bean
+      tags:
+        - admin-beans
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBeanRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/beans/{id}:
+    put:
+      summary: Admin update bean
+      tags:
+        - admin-beans
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBeanRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/beans/{id}/publish:
+    patch:
+      summary: Admin publish bean
+      tags:
+        - admin-beans
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/beans/{id}/unpublish:
+    patch:
+      summary: Admin unpublish bean
+      tags:
+        - admin-beans
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/articles:
+    post:
+      summary: Admin create article
+      tags:
+        - admin-articles
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminArticleRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/articles/{id}:
+    put:
+      summary: Admin update article
+      tags:
+        - admin-articles
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminArticleRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/articles/{id}/publish:
+    patch:
+      summary: Admin publish article
+      tags:
+        - admin-articles
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/articles/{id}/unpublish:
+    patch:
+      summary: Admin unpublish article
+      tags:
+        - admin-articles
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/bean-articles:
+    post:
+      summary: Admin create bean article relation
+      tags:
+        - admin-relations
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BeanArticle"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/bean-articles/{bean_id}/{article_id}:
+    delete:
+      summary: Admin delete bean article relation
+      tags:
+        - admin-relations
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: bean_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/beans/{bean_id}/articles:
+    put:
+      summary: Admin replace bean articles
+      tags:
+        - admin-relations
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: bean_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceRelationsRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/beans/{bean_id}/articles/order:
+    patch:
+      summary: Admin update bean article display order
+      tags:
+        - admin-relations
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: bean_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceRelationsRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/batches/ranking:
+    post:
+      summary: Admin run ranking batch
+      tags:
+        - admin-batches
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchRun"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchRunRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/batches/interest:
+    post:
+      summary: Admin run interest batch
+      tags:
+        - admin-batches
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchRun"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchRunRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/batches:
+    get:
+      summary: Admin list batch runs
+      tags:
+        - admin-batches
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BatchRun"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - bearerAuth: []
+  /admin/batches/latest:
+    get:
+      summary: Admin latest batch run
+      tags:
+        - admin-batches
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchRun"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: job_name
+          in: query
+          required: false
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+  /admin/audit-logs:
+    get:
+      summary: Admin list audit logs
+      tags:
+        - admin-audit
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: actor_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - user
+              - admin
+              - system
+        - name: actor_user_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - login
+              - logout
+              - refresh_reuse_detected
+              - bean_create
+              - bean_update
+              - bean_publish
+              - bean_unpublish
+              - article_create
+              - article_update
+              - article_publish
+              - article_unpublish
+              - ranking_batch_run
+              - manual_batch_run
+              - rate_limit_reset
+        - name: target_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: target_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - bearerAuth: []
+  /admin/audit-logs/{id}:
+    get:
+      summary: Admin get audit log
+      tags:
+        - admin-audit
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLog"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+  /admin/audit-logs/request/{request_id}:
+    get:
+      summary: Admin list audit logs by request id
+      tags:
+        - admin-audit
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+  /admin/cleanup/expired:
+    post:
+      summary: Admin delete expired data
+      tags:
+        - admin-cleanup
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CleanupResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /admin/rate-limits/reset:
+    post:
+      summary: Admin reset rate limit
+      tags:
+        - admin-rate-limits
+      responses:
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RateLimitResetRequest"
+      security:
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+    csrfCookie:
+      type: apiKey
+      in: cookie
+      name: csrf_token
+    refreshTokenCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+    guestSessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-guest_session
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - ng
+    CSRFResponse:
+      type: object
+      properties:
+        csrf_token:
+          type: string
+    GuestSessionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        created:
+          type: boolean
+        expires_at:
+          type: string
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+        status:
+          type: string
+          enum:
+            - active
+            - suspended
+            - deleted
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserResponse"
+        access_token:
+          type: string
+    SignupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    Bean:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        roaster:
+          type: string
+          nullable: true
+        origin:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        farm:
+          type: string
+          nullable: true
+        variety:
+          type: string
+          nullable: true
+        roast_level:
+          type: string
+          enum:
+            - light
+            - medium
+            - dark
+        acidity:
+          type: integer
+          nullable: true
+        bitterness:
+          type: integer
+          nullable: true
+        flavor:
+          type: integer
+          nullable: true
+        aroma:
+          type: integer
+          nullable: true
+        body:
+          type: integer
+          nullable: true
+        flavor_note:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        is_published:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        body:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        source_name:
+          type: string
+          nullable: true
+        source_url:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        is_published:
+          type: boolean
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BeanArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        bean_id:
+          type: integer
+          format: int64
+        article_id:
+          type: integer
+          format: int64
+        display_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    RankTarget:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        content_type:
+          type: string
+          enum:
+            - bean
+            - article
+        content_id:
+          type: integer
+          format: int64
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ActionEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+          nullable: true
+        guest_session_id:
+          type: integer
+          format: int64
+          nullable: true
+        event_type:
+          type: string
+          enum:
+            - content_view
+            - impression
+            - stay
+            - click
+            - save
+            - rating
+            - re_search
+            - modal_impression
+            - modal_click
+            - modal_close
+        rank_target_id:
+          type: integer
+          format: int64
+          nullable: true
+        placement:
+          type: string
+          enum:
+            - top
+            - search_result
+            - bean_detail
+            - article_detail
+            - related_article
+            - related_bean
+            - modal
+            - saved_list
+        dwell_ms:
+          type: integer
+          format: int64
+          nullable: true
+        rating_score:
+          type: integer
+          nullable: true
+        search_condition_hash:
+          type: string
+          nullable: true
+        previous_condition_hash:
+          type: string
+          nullable: true
+        search_keyword:
+          type: string
+          nullable: true
+        search_origin:
+          type: string
+          nullable: true
+        search_roast_level:
+          type: string
+          nullable: true
+          enum:
+            - light
+            - medium
+            - dark
+        search_acidity:
+          type: integer
+          nullable: true
+        search_bitterness:
+          type: integer
+          nullable: true
+        search_aroma:
+          type: integer
+          nullable: true
+        search_flavor:
+          type: integer
+          nullable: true
+        search_body:
+          type: integer
+          nullable: true
+        search_category:
+          type: string
+          nullable: true
+        modal_display_log_id:
+          type: integer
+          format: int64
+          nullable: true
+        page_path:
+          type: string
+        referrer_path:
+          type: string
+          nullable: true
+        request_id:
+          type: string
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
+    ModalDisplayLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+          nullable: true
+        guest_session_id:
+          type: integer
+          format: int64
+          nullable: true
+        rank_target_id:
+          type: integer
+          format: int64
+        trigger:
+          type: string
+          enum:
+            - first_visit
+            - scroll_end
+            - bean_stay
+            - article_stay
+            - same_origin_viewed
+            - same_roast_clicked
+            - saved_content
+            - good_rating
+            - re_search
+        page_path:
+          type: string
+        shown_at:
+          type: string
+          format: date-time
+        clicked_at:
+          type: string
+          format: date-time
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    ModalBlockLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+          nullable: true
+        guest_session_id:
+          type: integer
+          format: int64
+          nullable: true
+        candidate_rank_target_id:
+          type: integer
+          format: int64
+          nullable: true
+        reason:
+          type: string
+          enum:
+            - page_just_opened
+            - page_limit_reached
+            - session_limit_reached
+            - recently_shown
+            - recently_closed
+            - during_save
+            - during_rating
+            - login_modal_open
+            - already_saved
+            - no_candidate
+        page_path:
+          type: string
+        blocked_at:
+          type: string
+          format: date-time
+    SavedItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        rank_target_id:
+          type: integer
+          format: int64
+        removed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Rating:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        rank_target_id:
+          type: integer
+          format: int64
+        score:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ContentMetric:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        rank_target_id:
+          type: integer
+          format: int64
+        score:
+          type: number
+          format: double
+        impression_count:
+          type: integer
+          format: int64
+        content_view_count:
+          type: integer
+          format: int64
+        click_count:
+          type: integer
+          format: int64
+        stay_total_ms:
+          type: integer
+          format: int64
+        save_count:
+          type: integer
+          format: int64
+        rating_count:
+          type: integer
+          format: int64
+        good_count:
+          type: integer
+          format: int64
+        bad_count:
+          type: integer
+          format: int64
+        re_search_count:
+          type: integer
+          format: int64
+        rating_avg:
+          type: number
+          format: double
+        good_rate:
+          type: number
+          format: double
+        bad_rate:
+          type: number
+          format: double
+        modal_impression_count:
+          type: integer
+          format: int64
+        modal_click_count:
+          type: integer
+          format: int64
+        modal_close_count:
+          type: integer
+          format: int64
+        click_rate:
+          type: number
+          format: double
+        save_rate:
+          type: number
+          format: double
+        re_search_rate:
+          type: number
+          format: double
+        modal_click_rate:
+          type: number
+          format: double
+        modal_close_rate:
+          type: number
+          format: double
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        calculated_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    InterestProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+          nullable: true
+        guest_session_id:
+          type: integer
+          format: int64
+          nullable: true
+        dimension:
+          type: string
+          enum:
+            - origin
+            - roast_level
+            - acidity
+            - bitterness
+            - flavor
+            - aroma
+            - body
+            - article_category
+        value:
+          type: string
+        score:
+          type: number
+          format: double
+        last_event_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BatchRun:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        job_name:
+          type: string
+        status:
+          type: string
+          enum:
+            - running
+            - success
+            - failed
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        rows_processed:
+          type: integer
+          format: int64
+        error_message:
+          type: string
+          nullable: true
+        triggered_by:
+          type: string
+          enum:
+            - user
+            - admin
+            - system
+        triggered_user_id:
+          type: integer
+          format: int64
+          nullable: true
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        actor_type:
+          type: string
+          enum:
+            - user
+            - admin
+            - system
+        actor_user_id:
+          type: integer
+          format: int64
+          nullable: true
+        action:
+          type: string
+          enum:
+            - login
+            - logout
+            - refresh_reuse_detected
+            - bean_create
+            - bean_update
+            - bean_publish
+            - bean_unpublish
+            - article_create
+            - article_update
+            - article_publish
+            - article_unpublish
+            - ranking_batch_run
+            - manual_batch_run
+            - rate_limit_reset
+        target_type:
+          type: string
+          nullable: true
+        target_id:
+          type: integer
+          format: int64
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        request_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    EventRequest:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum:
+            - content_view
+            - impression
+            - stay
+            - click
+            - re_search
+        rank_target_id:
+          type: integer
+          format: int64
+          nullable: true
+        placement:
+          type: string
+          enum:
+            - top
+            - search_result
+            - bean_detail
+            - article_detail
+            - related_article
+            - related_bean
+            - modal
+            - saved_list
+        dwell_ms:
+          type: integer
+          format: int64
+          nullable: true
+        search_condition_hash:
+          type: string
+          nullable: true
+        previous_condition_hash:
+          type: string
+          nullable: true
+        search_keyword:
+          type: string
+          nullable: true
+        search_origin:
+          type: string
+          nullable: true
+        search_roast_level:
+          type: string
+          nullable: true
+          enum:
+            - light
+            - medium
+            - dark
+        search_acidity:
+          type: integer
+          nullable: true
+        search_bitterness:
+          type: integer
+          nullable: true
+        search_aroma:
+          type: integer
+          nullable: true
+        search_flavor:
+          type: integer
+          nullable: true
+        search_body:
+          type: integer
+          nullable: true
+        search_category:
+          type: string
+          nullable: true
+        page_path:
+          type: string
+        referrer_path:
+          type: string
+          nullable: true
+        dedup_key:
+          type: string
+        dedup_ttl_seconds:
+          type: integer
+    SaveRequest:
+      type: object
+      properties:
+        rank_target_id:
+          type: integer
+          format: int64
+        placement:
+          type: string
+          enum:
+            - top
+            - search_result
+            - bean_detail
+            - article_detail
+            - related_article
+            - related_bean
+            - modal
+            - saved_list
+        page_path:
+          type: string
+    RatingRequest:
+      type: object
+      properties:
+        rank_target_id:
+          type: integer
+          format: int64
+        score:
+          type: integer
+        placement:
+          type: string
+          enum:
+            - top
+            - search_result
+            - bean_detail
+            - article_detail
+            - related_article
+            - related_bean
+            - modal
+            - saved_list
+        page_path:
+          type: string
+    ShowModalRequest:
+      type: object
+      properties:
+        rank_target_id:
+          type: integer
+          format: int64
+        trigger:
+          type: string
+          enum:
+            - first_visit
+            - scroll_end
+            - bean_stay
+            - article_stay
+            - same_origin_viewed
+            - same_roast_clicked
+            - saved_content
+            - good_rating
+            - re_search
+        page_path:
+          type: string
+    ModalActionRequest:
+      type: object
+      properties:
+        modal_display_log_id:
+          type: integer
+          format: int64
+        page_path:
+          type: string
+    AdminBeanRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        roaster:
+          type: string
+          nullable: true
+        origin:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        farm:
+          type: string
+          nullable: true
+        variety:
+          type: string
+          nullable: true
+        roast_level:
+          type: string
+          enum:
+            - light
+            - medium
+            - dark
+        acidity:
+          type: integer
+          nullable: true
+        bitterness:
+          type: integer
+          nullable: true
+        flavor:
+          type: integer
+          nullable: true
+        aroma:
+          type: integer
+          nullable: true
+        body:
+          type: integer
+          nullable: true
+        flavor_note:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        is_published:
+          type: boolean
+    AdminArticleRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        body:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        source_name:
+          type: string
+          nullable: true
+        source_url:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        is_published:
+          type: boolean
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+    RelationRequest:
+      type: object
+      properties:
+        bean_id:
+          type: integer
+          format: int64
+        article_id:
+          type: integer
+          format: int64
+        display_order:
+          type: integer
+    ReplaceRelationsRequest:
+      type: object
+      properties:
+        article_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+    BatchRunRequest:
+      type: object
+      properties:
+        owner:
+          type: string
+        user_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        guest_session_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+    RateLimitResetRequest:
+      type: object
+      properties:
+        key:
+          type: string
+    RankingResult:
+      type: object
+      properties:
+        Metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentMetric"
+        Beans:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bean"
+        Articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Article"
+    RecommendationReason:
+      type: object
+      properties:
+        dimension:
+          type: string
+          enum:
+            - origin
+            - roast_level
+            - acidity
+            - bitterness
+            - flavor
+            - aroma
+            - body
+            - article_category
+        value:
+          type: string
+        score:
+          type: number
+          format: double
+        message:
+          type: string
+    RecommendationItem:
+      type: object
+      properties:
+        rank_target_id:
+          type: integer
+          format: int64
+        content_type:
+          type: string
+          enum:
+            - bean
+            - article
+        content_id:
+          type: integer
+          format: int64
+        score:
+          type: number
+          format: double
+        base_score:
+          type: number
+          format: double
+        interest_score:
+          type: number
+          format: double
+        reasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendationReason"
+        metric:
+          $ref: "#/components/schemas/ContentMetric"
+    SavedExistsResponse:
+      type: object
+      properties:
+        saved:
+          type: boolean
+    CleanupResult:
+      type: object
+      properties:
+        deleted_refresh_tokens:
+          type: integer
+          format: int64
+        deleted_guest_sessions:
+          type: integer
+          format: int64
+        deleted_interest_profiles:
+          type: integer
+          format: int64

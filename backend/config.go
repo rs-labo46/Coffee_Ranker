@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -27,6 +28,8 @@ type appConfig struct {
 }
 
 func loadAppConfig() appConfig {
+	_ = godotenv.Load()
+
 	return appConfig{
 		Port:               env("PORT", "8080"),
 		JWTSecret:          env("JWT_SECRET", ""),

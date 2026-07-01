@@ -42,6 +42,9 @@ func main() {
 	if err := migrate.AutoMigrate(database); err != nil {
 		log.Fatal(err)
 	}
+	if err := migrate.Seed(database); err != nil {
+		log.Fatal(err)
+	}
 	userRepository := repository.NewUserRepository(database)
 	refreshTokenRepository := repository.NewRefreshTokenRepository(database)
 	guestSessionRepository := repository.NewGuestSessionRepository(database)
@@ -124,7 +127,8 @@ func main() {
 			Ranking:        controller.NewRankingController(rankingUsecase, validator.NewRankingValidator()),
 			Recommendation: controller.NewRecommendationController(recommendationUsecase, validator.NewRecommendationValidator()),
 			Modal:          controller.NewModalController(modalUsecase, validator.NewModalValidator()),
-			GuestSession:   controller.NewGuestSessionController(guestSessionUsecase, cookieConfig), Cleanup: controller.NewCleanupController(cleanupUsecase),
+			GuestSession:   controller.NewGuestSessionController(guestSessionUsecase, cookieConfig),
+			Cleanup:        controller.NewCleanupController(cleanupUsecase),
 			AdminRateLimit: controller.NewAdminRateLimitController(adminRateLimitUsecase, validator.NewAdminRateLimitValidator()),
 			AdminBean:      controller.NewAdminBeanController(adminBeanUsecase, validator.NewAdminBeanValidator()),
 			AdminArticle:   controller.NewAdminArticleController(adminArticleUsecase, validator.NewAdminArticleValidator()),
