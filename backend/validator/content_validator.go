@@ -2,11 +2,6 @@ package validator
 
 type ContentValidator struct{}
 
-type ListQuery struct {
-	Limit  int `query:"limit"`
-	Offset int `query:"offset"`
-}
-
 // NewContentValidatorを生成してDI層やRouterから使えるようにする。
 func NewContentValidator() *ContentValidator {
 	return &ContentValidator{}
@@ -14,7 +9,7 @@ func NewContentValidator() *ContentValidator {
 
 // Bean/Article一覧のlimit/offsetを検証。
 // 公開中データの有無や取得順はUsecase/Repositoryで判断。
-func (v *ContentValidator) List(input ListQuery) (PageQuery, error) {
+func (v *ContentValidator) List(input PageQuery) (PageQuery, error) {
 	return NormalizePage(PageQuery{Limit: input.Limit, Offset: input.Offset}, 20, 100, 10000)
 }
 

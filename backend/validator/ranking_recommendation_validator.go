@@ -5,24 +5,13 @@ import "coffee-ranker/entity"
 type RankingValidator struct{}
 type RecommendationValidator struct{}
 
-type RankingQuery struct {
+type ContentTypePageQuery struct {
 	ContentType string `query:"content_type"`
 	Limit       int    `query:"limit"`
 	Offset      int    `query:"offset"`
 }
 
-type RecommendationQuery struct {
-	ContentType string `query:"content_type"`
-	Limit       int    `query:"limit"`
-	Offset      int    `query:"offset"`
-}
-
-type ValidRankingQuery struct {
-	ContentType *entity.ContentType
-	Page        PageQuery
-}
-
-type ValidRecommendationQuery struct {
+type ValidContentTypePageQuery struct {
 	ContentType *entity.ContentType
 	Page        PageQuery
 }
@@ -39,17 +28,18 @@ func NewRecommendationValidator() *RecommendationValidator {
 
 // ランキング一覧queryのcontent_typeとページングを検証。
 // ランキングスコアの取得や並び順はRankingUsecaseで判断。
-func (v *RankingValidator) List(input RankingQuery) (ValidRankingQuery, error) {
+func (v *RankingValidator) List(input ContentTypePageQuery) (ValidContentTypePageQuery, error) {
 	contentType, err := ValidateContentType(input.ContentType)
 	if err != nil {
-		return ValidRankingQuery{}, err
+		return ValidContentTypePageQuery{}, err
 	}
-	// limit/offsetを上限内に正規化し、大量取得によるDB負荷を防ぐ。
+
 	page, err := NormalizePage(PageQuery{Limit: input.Limit, Offset: input.Offset}, 20, 100, 10000)
 	if err != nil {
-		return ValidRankingQuery{}, err
+		return ValidContentTypePageQuery{}, err
 	}
-	return ValidRankingQuery{ContentType: contentType, Page: page}, nil
+
+	return ValidContentTypePageQuery{ContentType: contentType, Page: page}, nil
 }
 
 // TOP表示ランキングのlimitを検証。
@@ -66,15 +56,16 @@ func (v *RankingValidator) Top(limit int) (int, error) {
 
 // 推薦一覧queryのcontent_type、limit、contextを検証。
 // 保存済み除外や興味スコアによる候補選定はUsecaseで判断。
-func (v *RecommendationValidator) List(input RecommendationQuery) (ValidRecommendationQuery, error) {
+func (v *RecommendationValidator) List(input ContentTypePageQuery) (ValidContentTypePageQuery, error) {
 	contentType, err := ValidateContentType(input.ContentType)
 	if err != nil {
-		return ValidRecommendationQuery{}, err
+		return ValidContentTypePageQuery{}, err
 	}
-	// limit/offsetを上限内に正規化し、大量取得によるDB負荷を防ぐ。
+
 	page, err := NormalizePage(PageQuery{Limit: input.Limit, Offset: input.Offset}, 20, 50, 500)
 	if err != nil {
-		return ValidRecommendationQuery{}, err
+		return ValidContentTypePageQuery{}, err
 	}
-	return ValidRecommendationQuery{ContentType: contentType, Page: page}, nil
+
+	return ValidContentTypePageQuery{ContentType: contentType, Page: page}, nil
 }

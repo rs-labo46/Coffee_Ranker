@@ -34,23 +34,40 @@ func NewRecommendationController(recommendation *usecase.RecommendationUsecase, 
 // ランキング一覧queryを検証してRankingUsecaseへ渡す。
 // content_typeとページングだけをController/Validator境界で確認。
 func (h *RankingController) List(c echo.Context) error {
+	contentType := c.QueryParam("content_type")
+
 	limit, err := parseIntQuery(c, "limit")
 	if err != nil {
 		return writeError(c, err)
 	}
+
 	offset, err := parseIntQuery(c, "offset")
 	if err != nil {
 		return writeError(c, err)
 	}
+
 	// ValidatorでUsecaseへ渡してよい形に正規化。
-	valid, err := h.validator.List(validator.RankingQuery{ContentType: c.QueryParam("content_type"), Limit: limit, Offset: offset})
+	valid, err := h.validator.List(validator.ContentTypePageQuery{
+		ContentType: contentType,
+		Limit:       limit,
+		Offset:      offset,
+	})
 	if err != nil {
 		return writeError(c, err)
 	}
-	result, err := h.ranking.List(c.Request().Context(), valid.ContentType, usecase.Page{Limit: valid.Page.Limit, Offset: valid.Page.Offset})
+
+	result, err := h.ranking.List(
+		c.Request().Context(),
+		valid.ContentType,
+		usecase.Page{
+			Limit:  valid.Page.Limit,
+			Offset: valid.Page.Offset,
+		},
+	)
 	if err != nil {
 		return writeError(c, err)
 	}
+
 	// Usecaseの結果をHTTPレスポンスDTOとして返す。
 	return c.JSON(http.StatusOK, result)
 }
@@ -91,7 +108,7 @@ func (h *RecommendationController) List(c echo.Context) error {
 		return writeError(c, err)
 	}
 	// ValidatorでUsecaseへ渡してよい形に正規化。
-	valid, err := h.validator.List(validator.RecommendationQuery{ContentType: c.QueryParam("content_type"), Limit: limit, Offset: offset})
+	valid, err := h.validator.List(validator.ContentTypePageQuery{ContentType: c.QueryParam("content_type"), Limit: limit, Offset: offset})
 	if err != nil {
 		return writeError(c, err)
 	}

@@ -62,13 +62,6 @@ type AuthTokenResult struct {
 	RefreshToken string
 }
 
-// Refresh成功時に返すUser、AccessToken、RefreshToken。
-type RefreshResult struct {
-	User         *model.User
-	AccessToken  string
-	RefreshToken string
-}
-
 // emailの前後空白を取り除き、小文字に統一。同じ文字列でも別アカウントとして登録できる可能性があるから。
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
@@ -219,23 +212,23 @@ func (u *AuthUsecase) Login(ctx context.Context, input LoginInput) (AuthTokenRes
 }
 
 // RefreshToken rotationを行い、正常なら新しいAccessTokenとRefreshTokenを返す。
-func (u *AuthUsecase) Refresh(ctx context.Context, refreshToken string, meta AuditMeta) (RefreshResult, error) {
+func (u *AuthUsecase) Refresh(ctx context.Context, refreshToken string, meta AuditMeta) (AuthTokenResult, error) {
 	if refreshToken == "" {
-		return RefreshResult{}, entity.ErrInvalidToken
+		return AuthTokenResult{}, entity.ErrInvalidToken
 	}
 
 	// DBにはRefreshTokenを保存しない。
 	// 送られてきた生RefreshTokenをhash化し、DBのtoken_hashと照合する。
 	oldHash, err := u.tokens.HashRefreshToken(ctx, refreshToken)
 	if err != nil {
-		return RefreshResult{}, entity.ErrInvalidToken
+		return AuthTokenResult{}, entity.ErrInvalidToken
 	}
 
 	// 新しいRefreshTokenの生値とDB保存用hashを作成。
 	// 生値はControllerでCookieに設定し、hashだけをDBに保存。
 	newPlain, newHash, err := u.tokens.NewRefreshToken(ctx)
 	if err != nil {
-		return RefreshResult{}, entity.ErrCreateFailed
+		return AuthTokenResult{}, entity.ErrCreateFailed
 	}
 
 	now := time.Now()
@@ -320,24 +313,24 @@ func (u *AuthUsecase) Refresh(ctx context.Context, refreshToken string, meta Aud
 		return nil
 	})
 	if err != nil {
-		return RefreshResult{}, err
+		return AuthTokenResult{}, err
 	}
 
 	// RefreshToken再利用検知時の処理。監査ログを残し、新tokenは返さずエラーにする
 	if reuseDetected {
 		safeAudit(ctx, u.audits, auditLog(entity.AuditActorUser, reuseUserID, entity.AuditActionRefreshReuseDetected, nil, nil, nil, meta))
-		return RefreshResult{}, entity.ErrRefreshTokenReuseDetected
+		return AuthTokenResult{}, entity.ErrRefreshTokenReuseDetected
 	}
 
 	if user == nil || newToken == nil {
-		return RefreshResult{}, entity.ErrRepositoryFailed
+		return AuthTokenResult{}, entity.ErrRepositoryFailed
 	}
 
 	if accessToken == "" {
-		return RefreshResult{}, entity.ErrCreateFailed
+		return AuthTokenResult{}, entity.ErrCreateFailed
 	}
 
-	return RefreshResult{
+	return AuthTokenResult{
 		User:         user,
 		AccessToken:  accessToken,
 		RefreshToken: newPlain, //newPlainをRefreshTokenとして返す。DBにはnewHashを保存済み

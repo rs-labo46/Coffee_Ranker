@@ -154,5 +154,5 @@ func (h *ContentController) listPage(c echo.Context) (validator.PageQuery, error
 	if err != nil {
 		return validator.PageQuery{}, err
 	}
-	return h.validator.List(validator.ListQuery{Limit: limit, Offset: offset})
+	return h.validator.List(validator.PageQuery{Limit: limit, Offset: offset})
 }
