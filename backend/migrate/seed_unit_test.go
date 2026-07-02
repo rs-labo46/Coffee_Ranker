@@ -65,8 +65,30 @@ func TestBuildSeedArticlesCreatesUniquePublishedSlugs(t *testing.T) {
 		if article.Category == nil || !validSeedArticleCategory(*article.Category) {
 			t.Fatalf("invalid category: %v", article.Category)
 		}
-		if article.Body == nil || *article.Body == "" {
-			t.Fatalf("article body is empty: %s", article.Slug)
+		if article.Body == nil || len(*article.Body) < 120 {
+			t.Fatalf("article body is too short: %s", article.Slug)
+		}
+		assertNoInternalSeedText(t, article.Title, article.Slug, article.Title)
+		assertNoInternalSeedText(t, article.Slug, article.Slug, article.Slug)
+		assertNoInternalSeedText(t, article.Summary, article.Slug, article.Summary)
+		assertNoInternalSeedText(t, *article.Body, article.Slug, *article.Body)
+	}
+}
+
+// 表示されるSeed文言に、開発者向けの説明が混入していないことを確認する。
+func assertNoInternalSeedText(t *testing.T, value string, slug string, label string) {
+	t.Helper()
+	for _, forbidden := range []string{
+		"Feed",
+		"Seed記事",
+		"詳細画面",
+		"確認用",
+		"ダミー",
+		"検証用",
+		"関連記事の確認",
+	} {
+		if strings.Contains(value, forbidden) {
+			t.Fatalf("article %s contains internal seed text %q in %s", slug, forbidden, label)
 		}
 	}
 }
