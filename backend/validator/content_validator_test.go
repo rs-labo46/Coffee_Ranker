@@ -10,13 +10,13 @@ import (
 func TestContentValidatorList(t *testing.T) {
 	v := NewContentValidator()
 
-	got, err := v.List(ListQuery{})
+	got, err := v.List(PageQuery{})
 	assertNoError(t, err)
 	if got.Limit != 20 || got.Offset != 0 {
 		t.Fatalf("expected default list page, got %+v", got)
 	}
 
-	_, err = v.List(ListQuery{Limit: 101})
+	_, err = v.List(PageQuery{Limit: 101})
 	assertErrorIs(t, err, entity.ErrInvalidPagination)
 }
 

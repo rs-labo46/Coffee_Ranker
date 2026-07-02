@@ -10,22 +10,22 @@ import (
 func TestRankingValidatorList(t *testing.T) {
 	v := NewRankingValidator()
 
-	got, err := v.List(RankingQuery{ContentType: "bean"})
+	got, err := v.List(ContentTypePageQuery{ContentType: "bean"})
 	assertNoError(t, err)
 	if got.ContentType == nil || *got.ContentType != entity.ContentTypeBean || got.Page.Limit != 20 {
 		t.Fatalf("unexpected ranking query: %+v", got)
 	}
 
-	got, err = v.List(RankingQuery{})
+	got, err = v.List(ContentTypePageQuery{})
 	assertNoError(t, err)
 	if got.ContentType != nil || got.Page.Limit != 20 {
 		t.Fatalf("expected no content_type and default page, got %+v", got)
 	}
 
-	_, err = v.List(RankingQuery{ContentType: "coffee"})
+	_, err = v.List(ContentTypePageQuery{ContentType: "coffee"})
 	assertErrorIs(t, err, entity.ErrInvalidContentType)
 
-	_, err = v.List(RankingQuery{Limit: 101})
+	_, err = v.List(ContentTypePageQuery{Limit: 101})
 	assertErrorIs(t, err, entity.ErrInvalidPagination)
 }
 
@@ -53,15 +53,15 @@ func TestRankingValidatorTop(t *testing.T) {
 func TestRecommendationValidatorList(t *testing.T) {
 	v := NewRecommendationValidator()
 
-	got, err := v.List(RecommendationQuery{ContentType: "article"})
+	got, err := v.List(ContentTypePageQuery{ContentType: "article"})
 	assertNoError(t, err)
 	if got.ContentType == nil || *got.ContentType != entity.ContentTypeArticle || got.Page.Limit != 20 {
 		t.Fatalf("unexpected recommendation query: %+v", got)
 	}
 
-	_, err = v.List(RecommendationQuery{ContentType: "coffee"})
+	_, err = v.List(ContentTypePageQuery{ContentType: "coffee"})
 	assertErrorIs(t, err, entity.ErrInvalidContentType)
 
-	_, err = v.List(RecommendationQuery{Limit: 51})
+	_, err = v.List(ContentTypePageQuery{Limit: 51})
 	assertErrorIs(t, err, entity.ErrInvalidPagination)
 }
