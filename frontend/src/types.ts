@@ -1,0 +1,196 @@
+export type ContentType = "bean" | "article";
+export type RoastLevel = "light" | "medium" | "dark";
+export type Placement =
+  | "top"
+  | "search_result"
+  | "bean_detail"
+  | "article_detail"
+  | "related_article"
+  | "related_bean"
+  | "modal"
+  | "saved_list";
+
+export type EventType =
+  | "content_view"
+  | "impression"
+  | "stay"
+  | "click"
+  | "re_search";
+export type RatingScore = 1 | -1;
+export type FeedFilter = "all" | "bean" | "article";
+export type SortKey = "score" | "newest" | "popular";
+export type AppView = "feed" | "detail" | "search" | "account";
+export type DetailReturnView = "feed" | "search";
+
+export type ApiErrorBody = {
+  code: string;
+  message: string;
+};
+
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  role: "user" | "admin";
+  status: "active" | "suspended" | "deleted";
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AuthResponse = {
+  user: User;
+  access_token: string;
+};
+
+export type CSRFResponse = {
+  csrf_token: string;
+};
+
+export type GuestSessionResponse = {
+  id: number;
+  created: boolean;
+  expires_at: string;
+};
+
+export type Bean = {
+  id: number;
+  name: string;
+  roaster?: string;
+  origin?: string;
+  region?: string;
+  farm?: string;
+  variety?: string;
+  roast_level: RoastLevel;
+  acidity?: number;
+  bitterness?: number;
+  flavor?: number;
+  aroma?: number;
+  body?: number;
+  flavor_note?: string;
+  description?: string;
+  image_url?: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Article = {
+  id: number;
+  title: string;
+  slug: string;
+  summary: string;
+  body?: string;
+  category?: string;
+  source_name?: string;
+  source_url?: string;
+  image_url?: string;
+  is_published: boolean;
+  published_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ContentMetric = {
+  id: number;
+  rank_target_id: number;
+  score: number;
+  impression_count: number;
+  content_view_count: number;
+  click_count: number;
+  stay_total_ms: number;
+  save_count: number;
+  rating_count: number;
+  good_count: number;
+  bad_count: number;
+  re_search_count: number;
+  rating_avg: number;
+  good_rate: number;
+  bad_rate: number;
+  modal_impression_count: number;
+  modal_click_count: number;
+  modal_close_count: number;
+  click_rate: number;
+  save_rate: number;
+  re_search_rate: number;
+  modal_click_rate: number;
+  modal_close_rate: number;
+  period_start: string;
+  period_end: string;
+  calculated_at: string;
+  updated_at: string;
+};
+
+export type RecommendationReason = {
+  dimension: string;
+  value: string;
+  score: number;
+  message: string;
+};
+
+export type RecommendationItem = {
+  rank_target_id: number;
+  content_type: ContentType;
+  content_id: number;
+  score: number;
+  base_score: number;
+  interest_score: number;
+  reasons: RecommendationReason[] | null;
+  metric: ContentMetric;
+};
+
+export type SavedItem = {
+  id: number;
+  user_id: number;
+  rank_target_id: number;
+  removed_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Rating = {
+  id: number;
+  user_id: number;
+  rank_target_id: number;
+  score: RatingScore;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FeedItem = {
+  key: string;
+  contentType: ContentType;
+  contentId: number;
+  rankTargetId?: number;
+  title: string;
+  subtitle: string;
+  summary: string;
+  body?: string;
+  imageUrl?: string;
+  badge: string;
+  score?: number;
+  reasons: RecommendationReason[];
+  metric?: ContentMetric;
+  bean?: Bean;
+  article?: Article;
+  isSaved?: boolean;
+  ratingScore?: RatingScore | null;
+};
+
+export type FeedState = {
+  items: FeedItem[];
+  loading: boolean;
+  error: string | null;
+};
+
+export type SearchState = {
+  q: string;
+  sort: SortKey;
+  contentType: FeedFilter;
+  roastLevel: "" | RoastLevel;
+  category: "" | "brewing" | "roast" | "beans" | "recipe";
+};
+
+export type Notice = {
+  tone: "info" | "success" | "error";
+  message: string;
+};
