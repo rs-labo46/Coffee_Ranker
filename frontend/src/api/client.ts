@@ -14,7 +14,7 @@ import type {
   SavedItem,
   SearchState,
   User,
-} from "..//types";
+} from "../types";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 const accessTokenKey = "coffee_ranker_access_token";
@@ -59,6 +59,17 @@ function setAccessToken(token: string | null): void {
 
 export function getAccessToken(): string | null {
   return accessToken;
+}
+
+export function clearAuthTokens(): void {
+  csrfToken = null;
+  setAccessToken(null);
+}
+
+export function isAuthError(error: unknown): boolean {
+  return (
+    error instanceof ApiError && (error.status === 401 || error.status === 403)
+  );
 }
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -239,8 +250,8 @@ export async function listBeans(limit = 20, offset = 0): Promise<Bean[]> {
 export async function listArticles(
   limit = 20,
   offset = 0,
-): Promise<import("..//types").Article[]> {
-  return request<import("..//types").Article[]>(
+): Promise<import("../types").Article[]> {
+  return request<import("../types").Article[]>(
     withQuery("/articles", { limit, offset }),
   );
 }
@@ -251,8 +262,8 @@ export async function getBean(id: number): Promise<Bean> {
 
 export async function getArticle(
   slug: string,
-): Promise<import("..//types").Article> {
-  return request<import("..//types").Article>(
+): Promise<import("../types").Article> {
+  return request<import("../types").Article>(
     `/articles/${encodeURIComponent(slug)}`,
     { auth: true },
   );
@@ -261,6 +272,7 @@ export async function getArticle(
 export async function listRecommendations(
   contentType: FeedFilter,
   limit = 30,
+  offset = 0,
 ): Promise<RecommendationItem[]> {
   const typed: ContentType | undefined =
     contentType === "all" ? undefined : contentType;
@@ -268,7 +280,7 @@ export async function listRecommendations(
     withQuery("/recommendations", {
       content_type: typed,
       limit,
-      offset: 0,
+      offset,
     }),
   );
 }
@@ -287,8 +299,8 @@ export async function searchBeans(state: SearchState): Promise<Bean[]> {
 
 export async function searchArticles(
   state: SearchState,
-): Promise<import("..//types").Article[]> {
-  return request<import("..//types").Article[]>(
+): Promise<import("../types").Article[]> {
+  return request<import("../types").Article[]>(
     withQuery("/search/articles", {
       q: state.q,
       category: state.category,
@@ -315,6 +327,26 @@ export async function recordEvent(payload: {
   dedup_ttl_seconds?: number;
 }): Promise<void> {
   await request<void>("/events", { method: "POST", body: payload, csrf: true });
+}
+
+export async function listSavedItems(
+  limit = 100,
+  offset = 0,
+): Promise<SavedItem[]> {
+  return request<SavedItem[]>(withQuery("/saved", { limit, offset }), {
+    auth: true,
+  });
+}
+
+export async function getRating(rankTargetId: number): Promise<Rating | null> {
+  try {
+    return await request<Rating>(`/ratings/${rankTargetId}`, { auth: true });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function saveItem(

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  clearAuthTokens,
   getAccessToken,
   login,
   logout,
@@ -15,7 +16,17 @@ type AuthState = {
   notice: Notice | null;
 };
 
-export function useAuthState() {
+type AuthActions = {
+  loginUser: (email: string, password: string) => Promise<void>;
+  signupUser: (name: string, email: string, password: string) => Promise<void>;
+  logoutUser: () => Promise<void>;
+  markSessionExpired: (message?: string) => void;
+  clearNotice: () => void;
+};
+
+export type UseAuthStateResult = AuthState & AuthActions;
+
+export function useAuthState(): UseAuthStateResult {
   const [state, setState] = useState<AuthState>({
     user: null,
     loading: true,
@@ -123,11 +134,30 @@ export function useAuthState() {
     }
   }, []);
 
+  const markSessionExpired = useCallback((message?: string) => {
+    clearAuthTokens();
+    setState({
+      user: null,
+      loading: false,
+      notice: {
+        tone: "info",
+        message:
+          message ??
+          "セッションの有効期限が切れました。ログインし直してください。",
+      },
+    });
+  }, []);
+
+  const clearNotice = useCallback(() => {
+    setState((current) => ({ ...current, notice: null }));
+  }, []);
+
   return {
     ...state,
     loginUser,
     signupUser,
     logoutUser,
-    clearNotice: () => setState((current) => ({ ...current, notice: null })),
+    markSessionExpired,
+    clearNotice,
   };
 }

@@ -12,22 +12,92 @@ import {
 import type {
   Article,
   Bean,
+  ContentMetric,
+  ContentType,
   FeedFilter,
   FeedItem,
   FeedState,
+  RankTargetID,
+  RecommendationItem,
+  RecommendationReason,
   SearchState,
 } from "../src/types";
 
-function toBeanItem(
-  bean: Bean,
-  rankTargetId?: number,
-  score?: number,
-): FeedItem {
+type RankTargetInfo = {
+  rankTargetId: RankTargetID;
+  score?: number;
+  reasons: RecommendationReason[];
+  metric?: ContentMetric;
+};
+
+type UseFeedDataResult = {
+  state: FeedState;
+  searching: boolean;
+  reload: () => Promise<void>;
+  showCatalog: () => void;
+  runSearch: (search: SearchState) => Promise<void>;
+};
+
+const recommendationPageLimit = 50;
+
+function targetKey(contentType: ContentType, contentId: number): string {
+  return `${contentType}:${contentId}`;
+}
+
+function buildRankIndex(
+  recommendations: RecommendationItem[],
+): Map<string, RankTargetInfo> {
+  const index = new Map<string, RankTargetInfo>();
+
+  for (const item of recommendations) {
+    index.set(targetKey(item.content_type, item.content_id), {
+      rankTargetId: item.rank_target_id,
+      score: item.score,
+      reasons: item.reasons ?? [],
+      metric: item.metric,
+    });
+  }
+
+  return index;
+}
+
+async function listCatalogRecommendations(): Promise<RecommendationItem[]> {
+  const pages = await Promise.all([
+    listRecommendations("bean", recommendationPageLimit, 0).catch(() => []),
+    listRecommendations(
+      "bean",
+      recommendationPageLimit,
+      recommendationPageLimit,
+    ).catch(() => []),
+    listRecommendations("article", recommendationPageLimit, 0).catch(() => []),
+    listRecommendations(
+      "article",
+      recommendationPageLimit,
+      recommendationPageLimit,
+    ).catch(() => []),
+  ]);
+
+  return pages.flat();
+}
+
+async function listFeedRecommendations(): Promise<RecommendationItem[]> {
+  return listRecommendations("all", recommendationPageLimit, 0).catch(() => []);
+}
+
+function rankInfoFor(
+  index: Map<string, RankTargetInfo>,
+  contentType: ContentType,
+  contentId: number,
+): RankTargetInfo | undefined {
+  return index.get(targetKey(contentType, contentId));
+}
+
+function toBeanItem(bean: Bean, info?: RankTargetInfo): FeedItem {
   return {
     key: `bean-${bean.id}`,
     contentType: "bean",
     contentId: bean.id,
-    rankTargetId,
+    rankTargetId: info?.rankTargetId,
     title: bean.name,
     subtitle:
       [bean.origin, bean.roaster].filter(Boolean).join(" / ") || "Coffee Bean",
@@ -38,22 +108,19 @@ function toBeanItem(
     body: bean.description,
     imageUrl: bean.image_url,
     badge: roastLabel(bean.roast_level),
-    score,
-    reasons: [],
+    score: info?.score,
+    reasons: info?.reasons ?? [],
+    metric: info?.metric,
     bean,
   };
 }
 
-function toArticleItem(
-  article: Article,
-  rankTargetId?: number,
-  score?: number,
-): FeedItem {
+function toArticleItem(article: Article, info?: RankTargetInfo): FeedItem {
   return {
     key: `article-${article.id}`,
     contentType: "article",
     contentId: article.id,
-    rankTargetId,
+    rankTargetId: info?.rankTargetId,
     title: article.title,
     subtitle:
       [categoryLabel(article.category), article.source_name]
@@ -63,8 +130,9 @@ function toArticleItem(
     body: article.body,
     imageUrl: article.image_url,
     badge: categoryLabel(article.category),
-    score,
-    reasons: [],
+    score: info?.score,
+    reasons: info?.reasons ?? [],
+    metric: info?.metric,
     article,
   };
 }
@@ -100,6 +168,7 @@ function categoryLabel(value: string | undefined): string {
 function uniqueItems(items: FeedItem[]): FeedItem[] {
   const seen = new Set<string>();
   const result: FeedItem[] = [];
+
   for (const item of items) {
     if (seen.has(item.key)) {
       continue;
@@ -107,6 +176,7 @@ function uniqueItems(items: FeedItem[]): FeedItem[] {
     seen.add(item.key);
     result.push(item);
   }
+
   return result;
 }
 
@@ -140,6 +210,7 @@ function matchesKeyword(item: FeedItem, keyword: string): boolean {
   if (normalized === "") {
     return true;
   }
+
   const source = normalizeSearchText(
     [
       item.title,
@@ -155,13 +226,37 @@ function matchesKeyword(item: FeedItem, keyword: string): boolean {
       .filter(Boolean)
       .join(" "),
   );
+
   return source.includes(normalized);
+}
+
+function catalogIndex(items: FeedItem[]): Map<string, FeedItem> {
+  return new Map<string, FeedItem>(items.map((item) => [item.key, item]));
+}
+
+function mergeCatalogState(
+  item: FeedItem,
+  catalog: Map<string, FeedItem>,
+): FeedItem {
+  const source = catalog.get(item.key);
+  if (source === undefined) {
+    return item;
+  }
+
+  return {
+    ...item,
+    rankTargetId: item.rankTargetId ?? source.rankTargetId,
+    score: item.score ?? source.score,
+    reasons: item.reasons.length > 0 ? item.reasons : source.reasons,
+    metric: item.metric ?? source.metric,
+  };
 }
 
 function localSearch(
   beans: Bean[],
   articles: Article[],
   search: SearchState,
+  rankIndex: Map<string, RankTargetInfo>,
 ): FeedItem[] {
   const useBeans =
     search.contentType === "all" || search.contentType === "bean";
@@ -174,7 +269,9 @@ function localSearch(
           (bean) =>
             search.roastLevel === "" || bean.roast_level === search.roastLevel,
         )
-        .map((bean) => toBeanItem(bean))
+        .map((bean) =>
+          toBeanItem(bean, rankInfoFor(rankIndex, "bean", bean.id)),
+        )
         .filter((item) => matchesKeyword(item, search.q))
     : [];
 
@@ -184,81 +281,87 @@ function localSearch(
           (article) =>
             search.category === "" || article.category === search.category,
         )
-        .map((article) => toArticleItem(article))
+        .map((article) =>
+          toArticleItem(article, rankInfoFor(rankIndex, "article", article.id)),
+        )
         .filter((item) => matchesKeyword(item, search.q))
     : [];
 
   return uniqueItems([...beanItems, ...articleItems]);
 }
 
-export function useFeedData(activeFilter: FeedFilter) {
+export function useFeedData(activeFilter: FeedFilter): UseFeedDataResult {
   const [state, setState] = useState<FeedState>({
     items: [],
+    catalogItems: [],
     loading: true,
     error: null,
   });
   const [searching, setSearching] = useState<boolean>(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<void> => {
     setState((current) => ({ ...current, loading: true, error: null }));
+
     try {
       await ensureGuestSession();
-      const [beans, articles, recommendations] = await Promise.all([
-        listBeans(100),
-        listArticles(100),
-        listRecommendations(activeFilter, 50).catch(() => []),
-      ]);
+      const [beans, articles, recommendations, catalogRecommendations] =
+        await Promise.all([
+          listBeans(100),
+          listArticles(100),
+          listFeedRecommendations(),
+          listCatalogRecommendations(),
+        ]);
 
-      const beansByID = new Map(beans.map((bean) => [bean.id, bean]));
-      const articlesByID = new Map(
+      const beansByID = new Map<number, Bean>(
+        beans.map((bean) => [bean.id, bean]),
+      );
+      const articlesByID = new Map<number, Article>(
         articles.map((article) => [article.id, article]),
       );
-      const recommended = recommendations.flatMap((item) => {
+      const rankIndex = buildRankIndex([
+        ...catalogRecommendations,
+        ...recommendations,
+      ]);
+
+      const recommendedItems = recommendations.flatMap((item) => {
+        const info = rankInfoFor(rankIndex, item.content_type, item.content_id);
+
         if (item.content_type === "bean") {
           const bean = beansByID.get(item.content_id);
-          if (bean === undefined) {
-            return [];
-          }
-          return [
-            {
-              ...toBeanItem(bean, item.rank_target_id, item.score),
-              reasons: item.reasons ?? [],
-              metric: item.metric,
-            },
-          ];
+          return bean === undefined ? [] : [toBeanItem(bean, info)];
         }
+
         const article = articlesByID.get(item.content_id);
-        if (article === undefined) {
-          return [];
-        }
-        return [
-          {
-            ...toArticleItem(article, item.rank_target_id, item.score),
-            reasons: item.reasons ?? [],
-            metric: item.metric,
-          },
-        ];
+        return article === undefined ? [] : [toArticleItem(article, info)];
       });
 
-      const fallback = [
-        ...beans.map((bean) => toBeanItem(bean)),
-        ...articles.map((article) => toArticleItem(article)),
+      const fallbackItems = [
+        ...beans.map((bean) =>
+          toBeanItem(bean, rankInfoFor(rankIndex, "bean", bean.id)),
+        ),
+        ...articles.map((article) =>
+          toArticleItem(article, rankInfoFor(rankIndex, "article", article.id)),
+        ),
       ];
 
+      const catalogItems = uniqueItems([...recommendedItems, ...fallbackItems]);
+
       setState({
-        items: uniqueItems([...recommended, ...fallback]),
+        items: catalogItems,
+        catalogItems,
         loading: false,
         error: null,
       });
     } catch (error) {
       setState({
         items: [],
+        catalogItems: [],
         loading: false,
         error:
           error instanceof Error ? error.message : "読み込みに失敗しました",
       });
     }
-  }, [activeFilter]);
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -266,13 +369,23 @@ export function useFeedData(activeFilter: FeedFilter) {
     });
   }, [load]);
 
+  const showCatalog = useCallback((): void => {
+    setState((current) => ({
+      ...current,
+      items: current.catalogItems,
+      loading: false,
+      error: null,
+    }));
+  }, []);
+
   const runSearch = useCallback(
-    async (search: SearchState) => {
+    async (search: SearchState): Promise<void> => {
       const hasQuery =
         search.q.trim() !== "" ||
         search.roastLevel !== "" ||
         search.category !== "" ||
         search.contentType !== "all";
+
       if (!hasQuery) {
         await load();
         return;
@@ -280,18 +393,47 @@ export function useFeedData(activeFilter: FeedFilter) {
 
       setSearching(true);
       setState((current) => ({ ...current, error: null }));
+
       try {
         const useBeans =
           search.contentType === "all" || search.contentType === "bean";
         const useArticles =
           search.contentType === "all" || search.contentType === "article";
+        const catalog = catalogIndex(state.catalogItems);
+        const rankIndex = new Map<string, RankTargetInfo>();
+
+        for (const item of state.catalogItems) {
+          if (item.rankTargetId !== undefined) {
+            rankIndex.set(targetKey(item.contentType, item.contentId), {
+              rankTargetId: item.rankTargetId,
+              score: item.score,
+              reasons: item.reasons,
+              metric: item.metric,
+            });
+          }
+        }
+
         const [beans, articles] = await Promise.all([
           useBeans ? searchBeans(search) : Promise.resolve([]),
           useArticles ? searchArticles(search) : Promise.resolve([]),
         ]);
+
         let items = uniqueItems([
-          ...beans.map((bean) => toBeanItem(bean)),
-          ...articles.map((article) => toArticleItem(article)),
+          ...beans.map((bean) =>
+            mergeCatalogState(
+              toBeanItem(bean, rankInfoFor(rankIndex, "bean", bean.id)),
+              catalog,
+            ),
+          ),
+          ...articles.map((article) =>
+            mergeCatalogState(
+              toArticleItem(
+                article,
+                rankInfoFor(rankIndex, "article", article.id),
+              ),
+              catalog,
+            ),
+          ),
         ]);
 
         if (items.length === 0) {
@@ -299,10 +441,20 @@ export function useFeedData(activeFilter: FeedFilter) {
             useBeans ? listBeans(100) : Promise.resolve([]),
             useArticles ? listArticles(100) : Promise.resolve([]),
           ]);
-          items = localSearch(fallbackBeans, fallbackArticles, search);
+          items = localSearch(
+            fallbackBeans,
+            fallbackArticles,
+            search,
+            rankIndex,
+          );
         }
 
-        setState({ items, loading: false, error: null });
+        setState((current) => ({
+          ...current,
+          items,
+          loading: false,
+          error: null,
+        }));
 
         await recordEvent({
           event_type: "re_search",
@@ -311,19 +463,20 @@ export function useFeedData(activeFilter: FeedFilter) {
           search_keyword: search.q.trim() || undefined,
           search_roast_level: search.roastLevel || undefined,
           search_category: search.category || undefined,
-          page_path: "/",
+          page_path: "/search",
         }).catch(() => undefined);
       } catch (error) {
-        setState({
+        setState((current) => ({
+          ...current,
           items: [],
           loading: false,
           error: error instanceof Error ? error.message : "検索に失敗しました",
-        });
+        }));
       } finally {
         setSearching(false);
       }
     },
-    [load],
+    [load, state.catalogItems],
   );
 
   const visibleItems = useMemo(
@@ -335,6 +488,7 @@ export function useFeedData(activeFilter: FeedFilter) {
     state: { ...state, items: visibleItems },
     searching,
     reload: load,
+    showCatalog,
     runSearch,
   };
 }

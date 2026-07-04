@@ -5,10 +5,11 @@ import type { FeedItem, RatingScore, User } from "../types";
 type ReelsFeedProps = {
   items: FeedItem[];
   activeItem: FeedItem | null;
-  restoreItemKey: string | null;
+  restoreScrollTop: number | null;
   restoreRevision: number;
   user: User | null;
   showScore?: boolean;
+  onScrollPositionChange: (scrollTop: number) => void;
   onActiveChange: (item: FeedItem) => void;
   onSelect: (item: FeedItem) => void;
   onSave: (item: FeedItem) => Promise<void>;
@@ -16,25 +17,18 @@ type ReelsFeedProps = {
 };
 
 const feedHeight =
-  "h-[calc(100svh_-_13.75rem_-_env(safe-area-inset-bottom))] min-h-[420px] lg:h-[calc(100svh_-_10.5rem)] lg:min-h-[560px] lg:max-h-[760px]";
+  "h-[calc(100svh_-_16.25rem_-_env(safe-area-inset-bottom))] min-h-[380px] max-h-[620px] lg:h-[calc(100svh_-_10.5rem)] lg:min-h-[560px] lg:max-h-[760px]";
 
 const feedOffset = "translate-y-6 lg:translate-y-0";
-
-function escapeSelector(value: string): string {
-  if (typeof CSS !== "undefined" && CSS.escape !== undefined) {
-    return CSS.escape(value);
-  }
-
-  return value.replace(/["\\]/g, "\\$&");
-}
 
 export function ReelsFeed({
   items,
   activeItem,
-  restoreItemKey,
+  restoreScrollTop,
   restoreRevision,
   user,
   showScore = false,
+  onScrollPositionChange,
   onActiveChange,
   onSelect,
   onSave,
@@ -44,18 +38,14 @@ export function ReelsFeed({
 
   useEffect(() => {
     const root = feedRef.current;
-    if (root === null || restoreItemKey === null || restoreRevision === 0) {
+    if (root === null || restoreScrollTop === null || restoreRevision === 0) {
       return;
     }
 
     window.requestAnimationFrame(() => {
-      const target = root.querySelector<HTMLElement>(
-        `[data-item-key="${escapeSelector(restoreItemKey)}"]`,
-      );
-
-      target?.scrollIntoView({ block: "start", behavior: "auto" });
+      root.scrollTop = restoreScrollTop;
     });
-  }, [items, restoreItemKey, restoreRevision]);
+  }, [restoreScrollTop, restoreRevision]);
 
   useEffect(() => {
     const root = feedRef.current;
@@ -111,6 +101,9 @@ export function ReelsFeed({
       className={`${feedHeight} ${feedOffset} snap-y snap-mandatory space-y-4 overflow-y-auto scroll-smooth rounded-[1.8rem] pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
       ref={feedRef}
       aria-label="コーヒーフィード"
+      onScroll={(event) => {
+        onScrollPositionChange(event.currentTarget.scrollTop);
+      }}
     >
       {items.map((item) => (
         <ContentCard

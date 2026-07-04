@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getArticle,
   getBean,
+  isAuthError,
+  listSavedItems,
   rateItem,
   recordEvent,
   removeSavedItem,
@@ -24,8 +26,10 @@ import type {
   DetailReturnView,
   FeedFilter,
   FeedItem,
+  FeedItemKey,
   Notice as NoticeType,
   Placement,
+  RankTargetID,
   RatingScore,
 } from "./types";
 
@@ -46,27 +50,38 @@ function App() {
   const [activeItem, setActiveItem] = useState<FeedItem | null>(null);
   const [detailItem, setDetailItem] = useState<FeedItem | null>(null);
   const [actionNotice, setActionNotice] = useState<NoticeType | null>(null);
+  const [feedScrollTop, setFeedScrollTop] = useState<number>(0);
+  const [feedRestoreScrollTop, setFeedRestoreScrollTop] = useState<
+    number | null
+  >(null);
   const [feedRestoreRevision, setFeedRestoreRevision] = useState<number>(0);
+  const [searchScrollY, setSearchScrollY] = useState<number>(0);
+  const [searchRestoreScrollY, setSearchRestoreScrollY] = useState<
+    number | null
+  >(null);
   const [searchRestoreRevision, setSearchRestoreRevision] = useState<number>(0);
   const [detailReturnView, setDetailReturnView] =
     useState<DetailReturnView>("feed");
-  const [detailRestoreItemKey, setDetailRestoreItemKey] = useState<
-    string | null
-  >(null);
   const [modalItem, setModalItem] = useState<FeedItem | null>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [savedTargetIds, setSavedTargetIds] = useState<Set<number>>(new Set());
-  const [ratingScores, setRatingScores] = useState<Map<number, RatingScore>>(
-    new Map(),
+  const [savedTargetIds, setSavedTargetIds] = useState<Set<RankTargetID>>(
+    () => new Set<RankTargetID>(),
   );
-  const viewedKeys = useRef(new Set<string>());
-  const impressedKeys = useRef(new Set<string>());
-  const modalShownKeys = useRef(new Set<string>());
-  const { state, searching, reload, runSearch } = useFeedData(activeFilter);
+  const [ratingScores, setRatingScores] = useState<
+    Map<RankTargetID, RatingScore>
+  >(() => new Map<RankTargetID, RatingScore>());
+  const viewedKeys = useRef<Set<FeedItemKey>>(new Set<FeedItemKey>());
+  const impressedKeys = useRef<Set<FeedItemKey>>(new Set<FeedItemKey>());
+  const modalShownKeys = useRef<Set<FeedItemKey>>(new Set<FeedItemKey>());
+  const { state, searching, reload, showCatalog, runSearch } =
+    useFeedData(activeFilter);
   const auth = useAuthState();
+  const authUser = auth.user;
+  const markSessionExpired = auth.markSessionExpired;
+
   const withActionState = useCallback(
     (item: FeedItem): FeedItem => {
-      if (item.rankTargetId === undefined) {
+      if (item.rankTargetId === undefined || authUser === null) {
         return {
           ...item,
           isSaved: false,
@@ -80,7 +95,7 @@ function App() {
         ratingScore: ratingScores.get(item.rankTargetId) ?? null,
       };
     },
-    [savedTargetIds, ratingScores],
+    [authUser, savedTargetIds, ratingScores],
   );
 
   const feedItems = useMemo(
@@ -88,12 +103,37 @@ function App() {
     [state.items, withActionState],
   );
 
+  const catalogItems = useMemo(
+    () => state.catalogItems.map((item) => withActionState(item)),
+    [state.catalogItems, withActionState],
+  );
+
   const currentActiveItem =
     activeItem !== null ? withActionState(activeItem) : (feedItems[0] ?? null);
 
   const currentDetailItem =
     detailItem !== null ? withActionState(detailItem) : null;
-  const isAdmin = auth.user?.role === "admin";
+  const isAdmin = authUser?.role === "admin";
+
+  const savedItems = useMemo(
+    () =>
+      catalogItems.filter(
+        (item) =>
+          item.rankTargetId !== undefined &&
+          savedTargetIds.has(item.rankTargetId),
+      ),
+    [catalogItems, savedTargetIds],
+  );
+
+  const goodItems = useMemo(
+    () =>
+      catalogItems.filter(
+        (item) =>
+          item.rankTargetId !== undefined &&
+          ratingScores.get(item.rankTargetId) === 1,
+      ),
+    [catalogItems, ratingScores],
+  );
 
   const returnToDetailSource = useCallback(() => {
     setView(detailReturnView);
@@ -105,7 +145,9 @@ function App() {
       return;
     }
 
-    setFeedRestoreRevision((current) => current + 1);
+    if (detailReturnView === "feed") {
+      setFeedRestoreRevision((current) => current + 1);
+    }
   }, [detailReturnView]);
 
   const selectView = useCallback(
@@ -119,6 +161,10 @@ function App() {
         }
       }
 
+      if (nextView === "feed") {
+        showCatalog();
+      }
+
       if (nextView !== "detail") {
         setDetailItem(null);
       }
@@ -126,16 +172,22 @@ function App() {
       setView(nextView);
       setActionNotice(null);
     },
-    [view],
+    [showCatalog, view],
   );
 
-  const selectFeedFilter = useCallback((filter: FeedFilter) => {
-    setActiveFilter(filter);
-    setView("feed");
-    setActionNotice(null);
-    setActiveItem(null);
-    setDetailItem(null);
-  }, []);
+  const selectFeedFilter = useCallback(
+    (filter: FeedFilter) => {
+      setActiveFilter(filter);
+      showCatalog();
+      setView("feed");
+      setActionNotice(null);
+      setActiveItem(null);
+      setDetailItem(null);
+      setFeedRestoreScrollTop(0);
+      setFeedRestoreRevision((current) => current + 1);
+    },
+    [showCatalog],
+  );
 
   const recordImpression = useCallback((item: FeedItem) => {
     if (
@@ -163,52 +215,89 @@ function App() {
     [recordImpression],
   );
 
+  useEffect(() => {
+    if (authUser === null) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadUserActions(): Promise<void> {
+      try {
+        const saved = await listSavedItems(100, 0);
+
+        if (cancelled) {
+          return;
+        }
+
+        setSavedTargetIds(
+          new Set<RankTargetID>(
+            saved.map((item) => item.rank_target_id as RankTargetID),
+          ),
+        );
+      } catch (error) {
+        if (!cancelled && isAuthError(error)) {
+          markSessionExpired();
+        }
+      }
+    }
+
+    void loadUserActions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser, markSessionExpired]);
+
   const onSelect = useCallback(
     async (item: FeedItem, source: DetailReturnView = "feed") => {
       setActiveItem(item);
       setModalOpen(false);
-
-      if (item.contentType === "article" && auth.user === null) {
-        setDetailItem(null);
-        setDetailReturnView(source);
-        setDetailRestoreItemKey(item.key);
-        setActionNotice({
-          tone: "info",
-          message: "記事の詳細を見るにはログインが必要です。",
-        });
-        setView("account");
-        return;
-      }
-
-      setDetailItem(item);
       setDetailReturnView(source);
-      setDetailRestoreItemKey(item.key);
-      setView("detail");
-      setActionNotice(null);
+
+      if (source === "feed") {
+        setFeedRestoreScrollTop(feedScrollTop);
+      }
+      if (source === "search") {
+        setSearchRestoreScrollY(searchScrollY);
+      }
 
       if (item.rankTargetId !== undefined) {
         void recordEvent({
           event_type: "click",
           rank_target_id: item.rankTargetId,
           placement: source === "search" ? "search_result" : "top",
-          page_path: source === "search" ? "/search" : "/",
+          page_path:
+            source === "search"
+              ? "/search"
+              : source === "account"
+                ? "/account"
+                : "/",
           dedup_key: `${source}:${item.rankTargetId}:click:${Date.now()}`,
         }).catch(() => undefined);
       }
 
-      try {
-        if (item.contentType === "bean") {
-          const bean = await getBean(item.contentId);
-          setDetailItem({
-            ...item,
-            bean,
-            body: bean.description ?? item.body,
-            summary: bean.description ?? item.summary,
+      if (item.contentType === "article") {
+        if (authUser === null) {
+          setDetailItem(null);
+          setActionNotice({
+            tone: "info",
+            message: "記事の詳細を見るにはログインが必要です。",
+          });
+          setView("account");
+          return;
+        }
+
+        if (item.article === undefined) {
+          setDetailItem(null);
+          setActionNotice({
+            tone: "error",
+            message: "記事情報が不足しているため詳細を開けません。",
           });
           return;
         }
 
-        if (auth.user !== null && item.article !== undefined) {
+        try {
           const article = await getArticle(item.article.slug);
           setDetailItem({
             ...item,
@@ -216,7 +305,43 @@ function App() {
             body: article.body ?? item.body,
             summary: article.summary,
           });
+          setView("detail");
+          setActionNotice(null);
+        } catch (error) {
+          setDetailItem(null);
+          if (isAuthError(error)) {
+            markSessionExpired(
+              "セッションの有効期限が切れました。記事詳細を見るにはログインし直してください。",
+            );
+            setActionNotice({
+              tone: "info",
+              message: "記事詳細を見るにはログインし直してください。",
+            });
+            setView("account");
+            return;
+          }
+
+          setActionNotice({
+            tone: "error",
+            message:
+              error instanceof Error ? error.message : "詳細取得に失敗しました",
+          });
         }
+        return;
+      }
+
+      setDetailItem(item);
+      setView("detail");
+      setActionNotice(null);
+
+      try {
+        const bean = await getBean(item.contentId);
+        setDetailItem({
+          ...item,
+          bean,
+          body: bean.description ?? item.body,
+          summary: bean.description ?? item.summary,
+        });
       } catch (error) {
         setActionNotice({
           tone: "error",
@@ -225,7 +350,7 @@ function App() {
         });
       }
     },
-    [auth.user],
+    [authUser, feedScrollTop, markSessionExpired, searchScrollY],
   );
 
   useEffect(() => {
@@ -319,7 +444,7 @@ function App() {
             next.delete(rankTargetId);
             return next;
           });
-          setActionNotice({ tone: "success", message: "保存を解除しました" });
+          setActionNotice(null);
           return;
         }
 
@@ -329,8 +454,14 @@ function App() {
           next.add(rankTargetId);
           return next;
         });
-        setActionNotice({ tone: "success", message: "保存しました" });
+        setActionNotice(null);
       } catch (error) {
+        if (isAuthError(error)) {
+          markSessionExpired();
+          setView("account");
+          return;
+        }
+
         setActionNotice({
           tone: "error",
           message:
@@ -338,41 +469,48 @@ function App() {
         });
       }
     },
-    [savedTargetIds],
+    [markSessionExpired, savedTargetIds],
   );
 
-  const onRate = useCallback(async (item: FeedItem, score: RatingScore) => {
-    if (item.rankTargetId === undefined) {
-      setActionNotice({
-        tone: "error",
-        message:
-          "rank_target_idがないため評価できません。推薦API経由のカードで確認してください。",
-      });
-      return;
-    }
+  const onRate = useCallback(
+    async (item: FeedItem, score: RatingScore) => {
+      if (item.rankTargetId === undefined) {
+        setActionNotice({
+          tone: "error",
+          message:
+            "rank_target_idがないため評価できません。推薦API経由のカードで確認してください。",
+        });
+        return;
+      }
 
-    const rankTargetId = item.rankTargetId;
+      const rankTargetId = item.rankTargetId;
 
-    try {
-      await rateItem(rankTargetId, score, placementFor(item), pathFor(item));
+      try {
+        await rateItem(rankTargetId, score, placementFor(item), pathFor(item));
 
-      setRatingScores((current) => {
-        const next = new Map(current);
-        next.set(rankTargetId, score);
-        return next;
-      });
+        setRatingScores((current) => {
+          const next = new Map(current);
+          next.set(rankTargetId, score);
+          return next;
+        });
 
-      setActionNotice({
-        tone: "success",
-        message: score === 1 ? "Goodを記録しました" : "Badを記録しました",
-      });
-    } catch (error) {
-      setActionNotice({
-        tone: "error",
-        message: error instanceof Error ? error.message : "評価に失敗しました",
-      });
-    }
-  }, []);
+        setActionNotice(null);
+      } catch (error) {
+        if (isAuthError(error)) {
+          markSessionExpired();
+          setView("account");
+          return;
+        }
+
+        setActionNotice({
+          tone: "error",
+          message:
+            error instanceof Error ? error.message : "評価に失敗しました",
+        });
+      }
+    },
+    [markSessionExpired],
+  );
 
   const openArticleLogin = useCallback(() => {
     setView("account");
@@ -381,6 +519,13 @@ function App() {
   const openSearchResult = useCallback(
     (item: FeedItem) => {
       void onSelect(item, "search");
+    },
+    [onSelect],
+  );
+
+  const openAccountItem = useCallback(
+    (item: FeedItem) => {
+      void onSelect(item, "account");
     },
     [onSelect],
   );
@@ -407,7 +552,7 @@ function App() {
           <TopHeader
             activeFilter={activeFilter}
             onFilterChange={selectFeedFilter}
-            user={auth.user}
+            user={authUser}
           />
 
           {view === "feed" ? (
@@ -422,10 +567,11 @@ function App() {
                 <ReelsFeed
                   items={feedItems}
                   activeItem={currentActiveItem}
-                  restoreItemKey={detailRestoreItemKey}
+                  restoreScrollTop={feedRestoreScrollTop}
                   restoreRevision={feedRestoreRevision}
-                  user={auth.user}
+                  user={authUser}
                   showScore={activeFilter === "all"}
+                  onScrollPositionChange={setFeedScrollTop}
                   onActiveChange={onActiveChange}
                   onSelect={(item) => void onSelect(item, "feed")}
                   onSave={onSave}
@@ -440,7 +586,7 @@ function App() {
               <Notice notice={actionNotice} />
               <DetailPanel
                 item={currentDetailItem}
-                user={auth.user}
+                user={authUser}
                 showMetrics={isAdmin}
                 notice={actionNotice}
                 onBack={returnToDetailSource}
@@ -456,8 +602,9 @@ function App() {
               activeFilter={activeFilter}
               items={feedItems}
               searching={searching}
-              restoreItemKey={detailRestoreItemKey}
+              restoreScrollY={searchRestoreScrollY}
               restoreRevision={searchRestoreRevision}
+              onScrollPositionChange={setSearchScrollY}
               onSearch={runSearch}
               onSelect={openSearchResult}
             />
@@ -465,12 +612,15 @@ function App() {
 
           {view === "account" ? (
             <AuthPage
-              user={auth.user}
+              user={authUser}
               loading={auth.loading}
               notice={auth.notice}
+              savedItems={savedItems}
+              goodItems={goodItems}
               onLogin={auth.loginUser}
               onSignup={auth.signupUser}
               onLogout={auth.logoutUser}
+              onSelectItem={openAccountItem}
             />
           ) : null}
         </div>

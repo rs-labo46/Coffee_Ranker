@@ -6,8 +6,9 @@ type SearchPageProps = {
   activeFilter: FeedFilter;
   items: FeedItem[];
   searching: boolean;
-  restoreItemKey: string | null;
+  restoreScrollY: number | null;
   restoreRevision: number;
+  onScrollPositionChange: (scrollY: number) => void;
   onSearch: (state: SearchState) => Promise<void>;
   onSelect: (item: FeedItem) => void;
 };
@@ -21,45 +22,83 @@ const defaultSearch: SearchState = {
 };
 
 const inputClass =
-  "w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-white outline-none transition placeholder:text-stone-500 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10";
+  "w-full min-h-12 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-base text-white outline-none transition placeholder:text-stone-500 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10";
 
-function escapeSelector(value: string): string {
-  if (typeof CSS !== "undefined" && CSS.escape !== undefined) {
-    return CSS.escape(value);
+const selectClass =
+  "w-full min-h-12 appearance-none rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pr-10 text-base font-semibold text-white outline-none transition focus:border-amber-300/60 focus:ring-4 focus:ring-amber-300/10";
+
+function toFeedFilter(value: string): FeedFilter {
+  if (value === "bean" || value === "article") {
+    return value;
   }
+  return "all";
+}
 
-  return value.replace(/["\\]/g, "\\$&");
+function toSortKey(value: string): SortKey {
+  if (value === "newest" || value === "popular") {
+    return value;
+  }
+  return "score";
+}
+
+function toRoastLevel(value: string): SearchState["roastLevel"] {
+  if (value === "light" || value === "medium" || value === "dark") {
+    return value;
+  }
+  return "";
+}
+
+function toArticleCategory(value: string): SearchState["category"] {
+  if (
+    value === "brewing" ||
+    value === "roast" ||
+    value === "beans" ||
+    value === "recipe"
+  ) {
+    return value;
+  }
+  return "";
 }
 
 export function SearchPage({
   activeFilter,
   items,
   searching,
-  restoreItemKey,
+  restoreScrollY,
   restoreRevision,
+  onScrollPositionChange,
   onSearch,
   onSelect,
 }: SearchPageProps) {
-  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const restoredRevisionRef = useRef<number>(0);
   const [state, setState] = useState<SearchState>({
     ...defaultSearch,
     contentType: activeFilter,
   });
 
   useEffect(() => {
-    const root = resultsRef.current;
-    if (root === null || restoreItemKey === null || restoreRevision === 0) {
+    if (
+      restoreScrollY === null ||
+      restoreRevision === 0 ||
+      restoredRevisionRef.current === restoreRevision
+    ) {
       return;
     }
 
+    restoredRevisionRef.current = restoreRevision;
     window.requestAnimationFrame(() => {
-      const target = root.querySelector<HTMLElement>(
-        `[data-item-key="${escapeSelector(restoreItemKey)}"]`,
-      );
-
-      target?.scrollIntoView({ block: "center", behavior: "auto" });
+      window.scrollTo({ top: restoreScrollY, behavior: "auto" });
     });
-  }, [items, restoreItemKey, restoreRevision]);
+  }, [restoreScrollY, restoreRevision]);
+
+  useEffect(() => {
+    const handleScroll = (): void => {
+      onScrollPositionChange(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [onScrollPositionChange]);
 
   function change(next: Partial<SearchState>): void {
     setState((current) => ({ ...current, ...next }));
@@ -89,10 +128,10 @@ export function SearchPage({
             />
             <div className="grid grid-cols-2 gap-3">
               <select
-                className={inputClass}
+                className={selectClass}
                 value={state.contentType}
                 onChange={(event) =>
-                  change({ contentType: event.target.value as FeedFilter })
+                  change({ contentType: toFeedFilter(event.target.value) })
                 }
               >
                 <option value="all">すべて</option>
@@ -100,10 +139,10 @@ export function SearchPage({
                 <option value="article">記事</option>
               </select>
               <select
-                className={inputClass}
+                className={selectClass}
                 value={state.sort}
                 onChange={(event) =>
-                  change({ sort: event.target.value as SortKey })
+                  change({ sort: toSortKey(event.target.value) })
                 }
               >
                 <option value="score">スコア順</option>
@@ -113,12 +152,10 @@ export function SearchPage({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <select
-                className={inputClass}
+                className={selectClass}
                 value={state.roastLevel}
                 onChange={(event) =>
-                  change({
-                    roastLevel: event.target.value as SearchState["roastLevel"],
-                  })
+                  change({ roastLevel: toRoastLevel(event.target.value) })
                 }
               >
                 <option value="">焙煎度</option>
@@ -127,12 +164,10 @@ export function SearchPage({
                 <option value="dark">深煎り</option>
               </select>
               <select
-                className={inputClass}
+                className={selectClass}
                 value={state.category}
                 onChange={(event) =>
-                  change({
-                    category: event.target.value as SearchState["category"],
-                  })
+                  change({ category: toArticleCategory(event.target.value) })
                 }
               >
                 <option value="">記事カテゴリ</option>
@@ -152,7 +187,7 @@ export function SearchPage({
           </form>
         </aside>
 
-        <div ref={resultsRef}>
+        <div>
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-stone-500">

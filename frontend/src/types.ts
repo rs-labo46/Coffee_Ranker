@@ -17,10 +17,12 @@ export type EventType =
   | "click"
   | "re_search";
 export type RatingScore = 1 | -1;
+export type RankTargetID = number;
+export type FeedItemKey = string;
 export type FeedFilter = "all" | "bean" | "article";
 export type SortKey = "score" | "newest" | "popular";
 export type AppView = "feed" | "detail" | "search" | "account";
-export type DetailReturnView = "feed" | "search";
+export type DetailReturnView = "feed" | "search" | "account";
 
 export type ApiErrorBody = {
   code: string;
@@ -157,10 +159,10 @@ export type Rating = {
 };
 
 export type FeedItem = {
-  key: string;
+  key: FeedItemKey;
   contentType: ContentType;
   contentId: number;
-  rankTargetId?: number;
+  rankTargetId?: RankTargetID;
   title: string;
   subtitle: string;
   summary: string;
@@ -178,6 +180,7 @@ export type FeedItem = {
 
 export type FeedState = {
   items: FeedItem[];
+  catalogItems: FeedItem[];
   loading: boolean;
   error: string | null;
 };
