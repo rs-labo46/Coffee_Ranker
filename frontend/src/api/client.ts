@@ -1,6 +1,10 @@
 import type {
+  AdminArticleInput,
+  AdminBeanInput,
   ApiErrorBody,
+  AuditLog,
   AuthResponse,
+  BatchRun,
   Bean,
   ContentType,
   CSRFResponse,
@@ -10,6 +14,7 @@ import type {
   Placement,
   Rating,
   RatingScore,
+  RankingResult,
   RecommendationItem,
   SavedItem,
   SearchState,
@@ -269,6 +274,22 @@ export async function getArticle(
   );
 }
 
+export async function listRankings(
+  contentType: FeedFilter,
+  limit = 100,
+  offset = 0,
+): Promise<RankingResult> {
+  const typed: ContentType | undefined =
+    contentType === "all" ? undefined : contentType;
+  return request<RankingResult>(
+    withQuery("/rankings", {
+      content_type: typed,
+      limit,
+      offset,
+    }),
+  );
+}
+
 export async function listRecommendations(
   contentType: FeedFilter,
   limit = 30,
@@ -334,6 +355,15 @@ export async function listSavedItems(
   offset = 0,
 ): Promise<SavedItem[]> {
   return request<SavedItem[]>(withQuery("/saved", { limit, offset }), {
+    auth: true,
+  });
+}
+
+export async function listRatings(
+  limit = 100,
+  offset = 0,
+): Promise<Rating[]> {
+  return request<Rating[]>(withQuery("/ratings", { limit, offset }), {
     auth: true,
   });
 }
@@ -418,4 +448,132 @@ export function stableSearchHash(state: SearchState): string {
     hash |= 0;
   }
   return `search_${Math.abs(hash).toString(36)}`;
+}
+
+export async function adminCreateBean(input: AdminBeanInput): Promise<Bean> {
+  return request<Bean>("/admin/beans", {
+    method: "POST",
+    auth: true,
+    csrf: true,
+    body: input,
+  });
+}
+
+export async function adminPublishBean(id: number): Promise<void> {
+  await request<void>(`/admin/beans/${id}/publish`, {
+    method: "PATCH",
+    auth: true,
+    csrf: true,
+  });
+}
+
+export async function adminUnpublishBean(id: number): Promise<void> {
+  await request<void>(`/admin/beans/${id}/unpublish`, {
+    method: "PATCH",
+    auth: true,
+    csrf: true,
+  });
+}
+
+export async function adminCreateArticle(
+  input: AdminArticleInput,
+): Promise<import("../types").Article> {
+  return request<import("../types").Article>("/admin/articles", {
+    method: "POST",
+    auth: true,
+    csrf: true,
+    body: input,
+  });
+}
+
+export async function adminPublishArticle(id: number): Promise<void> {
+  await request<void>(`/admin/articles/${id}/publish`, {
+    method: "PATCH",
+    auth: true,
+    csrf: true,
+  });
+}
+
+export async function adminUnpublishArticle(id: number): Promise<void> {
+  await request<void>(`/admin/articles/${id}/unpublish`, {
+    method: "PATCH",
+    auth: true,
+    csrf: true,
+  });
+}
+
+export async function adminCreateRelation(
+  beanId: number,
+  articleId: number,
+  displayOrder: number,
+): Promise<unknown> {
+  return request<unknown>("/admin/bean-articles", {
+    method: "POST",
+    auth: true,
+    csrf: true,
+    body: {
+      bean_id: beanId,
+      article_id: articleId,
+      display_order: displayOrder,
+    },
+  });
+}
+
+export async function adminReplaceBeanArticles(
+  beanId: number,
+  articleIds: number[],
+): Promise<void> {
+  await request<void>(`/admin/beans/${beanId}/articles`, {
+    method: "PUT",
+    auth: true,
+    csrf: true,
+    body: { article_ids: articleIds },
+  });
+}
+
+export async function adminRunRankingBatch(): Promise<BatchRun> {
+  return request<BatchRun>("/admin/batches/ranking", {
+    method: "POST",
+    auth: true,
+    csrf: true,
+    body: { owner: "manual_admin" },
+  });
+}
+
+export async function adminRunInterestBatch(): Promise<BatchRun> {
+  return request<BatchRun>("/admin/batches/interest", {
+    method: "POST",
+    auth: true,
+    csrf: true,
+    body: { owner: "manual_admin" },
+  });
+}
+
+export async function adminDeleteExpired(): Promise<unknown> {
+  return request<unknown>("/admin/cleanup/expired", {
+    method: "POST",
+    auth: true,
+    csrf: true,
+  });
+}
+
+export async function adminListBatchRuns(
+  limit = 20,
+  offset = 0,
+): Promise<BatchRun[]> {
+  return request<BatchRun[]>(withQuery("/admin/batches", { limit, offset }), {
+    auth: true,
+  });
+}
+
+export async function adminListAuditLogs(
+  limit = 20,
+  offset = 0,
+): Promise<AuditLog[]> {
+  return request<AuditLog[]>(
+    withQuery("/admin/audit-logs", { limit, offset }),
+    {
+      auth: true,
+    },
+  );
 }

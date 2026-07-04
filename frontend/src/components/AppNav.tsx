@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import type { AppView, FeedFilter } from "../types";
+import type { AppView, FeedFilter, User } from "../types";
 
 type AppNavProps = {
   view: AppView;
   activeFilter: FeedFilter;
   onViewChange: (view: AppView) => void;
   onFilterChange: (filter: FeedFilter) => void;
+  user: User | null;
   onRefresh: () => void;
 };
 
@@ -75,11 +76,36 @@ function AccountIcon() {
   );
 }
 
+function AdminIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3 4 6v5c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-3Z" />
+      <path d="M9 12h6" />
+      <path d="M12 9v6" />
+    </svg>
+  );
+}
+
 const navItems: NavItem[] = [
   { view: "feed", label: "Feed", icon: <HomeIcon /> },
   { view: "search", label: "Search", icon: <SearchIcon /> },
   { view: "account", label: "Account", icon: <AccountIcon /> },
 ];
+
+const adminNavItem: NavItem = {
+  view: "admin",
+  label: "Admin",
+  icon: <AdminIcon />,
+};
 
 const filters: FilterItem[] = [
   { value: "all", label: "All" },
@@ -90,10 +116,14 @@ const filters: FilterItem[] = [
 export function AppNav({
   view,
   activeFilter,
+  user,
   onViewChange,
   onFilterChange,
   onRefresh,
 }: AppNavProps) {
+  const visibleNavItems: NavItem[] =
+    user?.role === "admin" ? [...navItems, adminNavItem] : navItems;
+
   return (
     <aside className="sticky top-0 hidden h-svh w-24 shrink-0 flex-col items-center gap-3 border-r border-white/10 bg-stone-950/82 px-3 py-3 backdrop-blur lg:flex xl:w-28">
       <button
@@ -107,7 +137,7 @@ export function AppNav({
       </button>
 
       <nav className="flex flex-col gap-2" aria-label="主要ナビゲーション">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <button
             key={item.view}
             type="button"

@@ -40,6 +40,7 @@ type ISavedItemRepository interface {
 type IRatingRepository interface {
 	Create(ctx context.Context, rating *model.Rating) error
 	FindByUserAndTarget(ctx context.Context, userID uint64, rankTargetID uint64) (*model.Rating, error)
+	ListByUserID(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Rating, error)
 	Upsert(ctx context.Context, userID uint64, rankTargetID uint64, score entity.RatingScore, now time.Time) (*model.Rating, error)
 	Delete(ctx context.Context, userID uint64, rankTargetID uint64) error
 	CountByTarget(ctx context.Context, rankTargetID uint64) (int64, error)
@@ -418,6 +419,22 @@ func (r *GormRatingRepository) FindByUserAndTarget(ctx context.Context, userID u
 		return nil, mapDBError(err)
 	}
 	return &rating, nil
+}
+
+// 指定Userの評価一覧を新しい順に取得。
+func (r *GormRatingRepository) ListByUserID(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Rating, error) {
+	var ratings []*model.Rating
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("updated_at DESC").
+		Order("id DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&ratings).Error
+	if err != nil {
+		return nil, mapDBError(err)
+	}
+	return ratings, nil
 }
 
 // 未評価なら作成し、評価済みならGoodやBadを更新。

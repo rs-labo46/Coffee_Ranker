@@ -3,6 +3,7 @@ import {
   getArticle,
   getBean,
   isAuthError,
+  listRatings,
   listSavedItems,
   rateItem,
   recordEvent,
@@ -11,6 +12,7 @@ import {
   showModal,
 } from "./api/client";
 import { AppNav, BottomNav } from "./components/AppNav";
+import { AdminPage } from "./components/AdminPage";
 import { AuthPage } from "./components/AuthPage";
 import { DetailPanel } from "./components/DetailPanel";
 import { LoadingState } from "./components/LoadingState";
@@ -50,18 +52,12 @@ function App() {
   const [activeItem, setActiveItem] = useState<FeedItem | null>(null);
   const [detailItem, setDetailItem] = useState<FeedItem | null>(null);
   const [actionNotice, setActionNotice] = useState<NoticeType | null>(null);
-  const [feedScrollTop, setFeedScrollTop] = useState<number>(0);
-  const [feedRestoreScrollTop, setFeedRestoreScrollTop] = useState<
-    number | null
-  >(null);
   const [feedRestoreRevision, setFeedRestoreRevision] = useState<number>(0);
-  const [searchScrollY, setSearchScrollY] = useState<number>(0);
-  const [searchRestoreScrollY, setSearchRestoreScrollY] = useState<
-    number | null
-  >(null);
   const [searchRestoreRevision, setSearchRestoreRevision] = useState<number>(0);
   const [detailReturnView, setDetailReturnView] =
     useState<DetailReturnView>("feed");
+  const [detailRestoreItemKey, setDetailRestoreItemKey] =
+    useState<FeedItemKey | null>(null);
   const [modalItem, setModalItem] = useState<FeedItem | null>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [savedTargetIds, setSavedTargetIds] = useState<Set<RankTargetID>>(
@@ -73,8 +69,7 @@ function App() {
   const viewedKeys = useRef<Set<FeedItemKey>>(new Set<FeedItemKey>());
   const impressedKeys = useRef<Set<FeedItemKey>>(new Set<FeedItemKey>());
   const modalShownKeys = useRef<Set<FeedItemKey>>(new Set<FeedItemKey>());
-  const { state, searching, reload, showCatalog, runSearch } =
-    useFeedData(activeFilter);
+  const { state, searching, reload, runSearch } = useFeedData(activeFilter);
   const auth = useAuthState();
   const authUser = auth.user;
   const markSessionExpired = auth.markSessionExpired;
@@ -152,6 +147,15 @@ function App() {
 
   const selectView = useCallback(
     (nextView: AppView) => {
+      if (nextView === "admin" && authUser?.role !== "admin") {
+        setActionNotice({
+          tone: "error",
+          message: "管理画面はAdminだけが利用できます。",
+        });
+        setView("account");
+        return;
+      }
+
       if (view === "detail") {
         if (nextView === "feed") {
           setFeedRestoreRevision((current) => current + 1);
@@ -161,10 +165,6 @@ function App() {
         }
       }
 
-      if (nextView === "feed") {
-        showCatalog();
-      }
-
       if (nextView !== "detail") {
         setDetailItem(null);
       }
@@ -172,22 +172,16 @@ function App() {
       setView(nextView);
       setActionNotice(null);
     },
-    [showCatalog, view],
+    [authUser, view],
   );
 
-  const selectFeedFilter = useCallback(
-    (filter: FeedFilter) => {
-      setActiveFilter(filter);
-      showCatalog();
-      setView("feed");
-      setActionNotice(null);
-      setActiveItem(null);
-      setDetailItem(null);
-      setFeedRestoreScrollTop(0);
-      setFeedRestoreRevision((current) => current + 1);
-    },
-    [showCatalog],
-  );
+  const selectFeedFilter = useCallback((filter: FeedFilter) => {
+    setActiveFilter(filter);
+    setView("feed");
+    setActionNotice(null);
+    setActiveItem(null);
+    setDetailItem(null);
+  }, []);
 
   const recordImpression = useCallback((item: FeedItem) => {
     if (
@@ -217,6 +211,10 @@ function App() {
 
   useEffect(() => {
     if (authUser === null) {
+      queueMicrotask(() => {
+        setSavedTargetIds(new Set<RankTargetID>());
+        setRatingScores(new Map<RankTargetID, RatingScore>());
+      });
       return undefined;
     }
 
@@ -224,7 +222,10 @@ function App() {
 
     async function loadUserActions(): Promise<void> {
       try {
-        const saved = await listSavedItems(100, 0);
+        const [saved, ratings] = await Promise.all([
+          listSavedItems(100, 0),
+          listRatings(100, 0),
+        ]);
 
         if (cancelled) {
           return;
@@ -233,6 +234,14 @@ function App() {
         setSavedTargetIds(
           new Set<RankTargetID>(
             saved.map((item) => item.rank_target_id as RankTargetID),
+          ),
+        );
+        setRatingScores(
+          new Map<RankTargetID, RatingScore>(
+            ratings.map((rating) => [
+              rating.rank_target_id as RankTargetID,
+              rating.score,
+            ]),
           ),
         );
       } catch (error) {
@@ -254,13 +263,7 @@ function App() {
       setActiveItem(item);
       setModalOpen(false);
       setDetailReturnView(source);
-
-      if (source === "feed") {
-        setFeedRestoreScrollTop(feedScrollTop);
-      }
-      if (source === "search") {
-        setSearchRestoreScrollY(searchScrollY);
-      }
+      setDetailRestoreItemKey(item.key);
 
       if (item.rankTargetId !== undefined) {
         void recordEvent({
@@ -350,7 +353,7 @@ function App() {
         });
       }
     },
-    [authUser, feedScrollTop, markSessionExpired, searchScrollY],
+    [authUser, markSessionExpired],
   );
 
   useEffect(() => {
@@ -444,7 +447,7 @@ function App() {
             next.delete(rankTargetId);
             return next;
           });
-          setActionNotice(null);
+          setActionNotice({ tone: "success", message: "保存を解除しました" });
           return;
         }
 
@@ -454,7 +457,7 @@ function App() {
           next.add(rankTargetId);
           return next;
         });
-        setActionNotice(null);
+        setActionNotice({ tone: "success", message: "保存しました" });
       } catch (error) {
         if (isAuthError(error)) {
           markSessionExpired();
@@ -516,6 +519,20 @@ function App() {
     setView("account");
   }, []);
 
+  const openAdmin = useCallback(() => {
+    if (authUser?.role !== "admin") {
+      setActionNotice({
+        tone: "error",
+        message: "管理画面はAdminだけが利用できます。",
+      });
+      setView("account");
+      return;
+    }
+    setActionNotice(null);
+    setDetailItem(null);
+    setView("admin");
+  }, [authUser]);
+
   const openSearchResult = useCallback(
     (item: FeedItem) => {
       void onSelect(item, "search");
@@ -544,6 +561,7 @@ function App() {
         <AppNav
           view={view}
           activeFilter={activeFilter}
+          user={authUser}
           onViewChange={selectView}
           onFilterChange={selectFeedFilter}
           onRefresh={() => void reload()}
@@ -567,11 +585,10 @@ function App() {
                 <ReelsFeed
                   items={feedItems}
                   activeItem={currentActiveItem}
-                  restoreScrollTop={feedRestoreScrollTop}
+                  restoreItemKey={detailRestoreItemKey}
                   restoreRevision={feedRestoreRevision}
                   user={authUser}
                   showScore={activeFilter === "all"}
-                  onScrollPositionChange={setFeedScrollTop}
                   onActiveChange={onActiveChange}
                   onSelect={(item) => void onSelect(item, "feed")}
                   onSave={onSave}
@@ -602,11 +619,21 @@ function App() {
               activeFilter={activeFilter}
               items={feedItems}
               searching={searching}
-              restoreScrollY={searchRestoreScrollY}
+              restoreItemKey={detailRestoreItemKey}
               restoreRevision={searchRestoreRevision}
-              onScrollPositionChange={setSearchScrollY}
               onSearch={runSearch}
               onSelect={openSearchResult}
+            />
+          ) : null}
+
+          {view === "admin" && authUser?.role === "admin" ? (
+            <AdminPage
+              user={authUser}
+              notice={actionNotice}
+              onSessionExpired={(message?: string) => {
+                markSessionExpired(message);
+                setView("account");
+              }}
             />
           ) : null}
 
@@ -621,6 +648,7 @@ function App() {
               onSignup={auth.signupUser}
               onLogout={auth.logoutUser}
               onSelectItem={openAccountItem}
+              onOpenAdmin={openAdmin}
             />
           ) : null}
         </div>

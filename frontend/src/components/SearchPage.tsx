@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { ContentVisual } from "./ContentVisual";
-import type { FeedFilter, FeedItem, SearchState, SortKey } from "../types";
+import type {
+  FeedFilter,
+  FeedItem,
+  FeedItemKey,
+  SearchState,
+  SortKey,
+} from "../types";
 
 type SearchPageProps = {
   activeFilter: FeedFilter;
   items: FeedItem[];
   searching: boolean;
-  restoreScrollY: number | null;
+  restoreItemKey?: FeedItemKey | null;
+  restoreScrollY?: number | null;
   restoreRevision: number;
-  onScrollPositionChange: (scrollY: number) => void;
+  onScrollPositionChange?: (scrollY: number) => void;
   onSearch: (state: SearchState) => Promise<void>;
   onSelect: (item: FeedItem) => void;
 };
@@ -64,7 +71,8 @@ export function SearchPage({
   activeFilter,
   items,
   searching,
-  restoreScrollY,
+  restoreItemKey = null,
+  restoreScrollY = null,
   restoreRevision,
   onScrollPositionChange,
   onSearch,
@@ -77,23 +85,32 @@ export function SearchPage({
   });
 
   useEffect(() => {
-    if (
-      restoreScrollY === null ||
-      restoreRevision === 0 ||
-      restoredRevisionRef.current === restoreRevision
-    ) {
+    if (restoreRevision === 0 || restoredRevisionRef.current === restoreRevision) {
       return;
     }
 
     restoredRevisionRef.current = restoreRevision;
     window.requestAnimationFrame(() => {
-      window.scrollTo({ top: restoreScrollY, behavior: "auto" });
+      if (restoreItemKey !== null) {
+        const target = Array.from(
+          document.querySelectorAll<HTMLElement>("[data-item-key]"),
+        ).find((element) => element.getAttribute("data-item-key") === restoreItemKey);
+
+        if (target !== undefined) {
+          target.scrollIntoView({ block: "center", behavior: "auto" });
+          return;
+        }
+      }
+
+      if (restoreScrollY !== null) {
+        window.scrollTo({ top: restoreScrollY, behavior: "auto" });
+      }
     });
-  }, [restoreScrollY, restoreRevision]);
+  }, [restoreItemKey, restoreScrollY, restoreRevision]);
 
   useEffect(() => {
     const handleScroll = (): void => {
-      onScrollPositionChange(window.scrollY);
+      onScrollPositionChange?.(window.scrollY);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });

@@ -134,6 +134,7 @@ func registerUserRoutes(e *echo.Echo, c Controllers, mw Middlewares) {
 	e.GET("/saved/:rank_target_id", c.Saved.Exists, user...)
 	e.DELETE("/saved/:rank_target_id", c.Saved.Remove, userWithCSRF...)
 
+	e.GET("/ratings", c.Rating.List, user...)
 	e.POST("/ratings", c.Rating.Rate, userWithCSRF...)
 	e.GET("/ratings/:rank_target_id", c.Rating.Get, user...)
 	e.DELETE("/ratings/:rank_target_id", c.Rating.Delete, userWithCSRF...)

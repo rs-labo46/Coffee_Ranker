@@ -3,6 +3,7 @@ import {
   ensureGuestSession,
   listArticles,
   listBeans,
+  listRankings,
   listRecommendations,
   recordEvent,
   searchArticles,
@@ -18,6 +19,7 @@ import type {
   FeedItem,
   FeedState,
   RankTargetID,
+  RankingResult,
   RecommendationItem,
   RecommendationReason,
   SearchState,
@@ -39,12 +41,22 @@ type UseFeedDataResult = {
 };
 
 const recommendationPageLimit = 50;
+const rankingPageLimit = 100;
+
+function emptyRankingResult(): RankingResult {
+  return {
+    metrics: [],
+    targets: [],
+    beans: [],
+    articles: [],
+  };
+}
 
 function targetKey(contentType: ContentType, contentId: number): string {
   return `${contentType}:${contentId}`;
 }
 
-function buildRankIndex(
+function buildRecommendationIndex(
   recommendations: RecommendationItem[],
 ): Map<string, RankTargetInfo> {
   const index = new Map<string, RankTargetInfo>();
@@ -61,27 +73,72 @@ function buildRankIndex(
   return index;
 }
 
+function buildRankingIndex(results: RankingResult[]): Map<string, RankTargetInfo> {
+  const index = new Map<string, RankTargetInfo>();
+
+  for (const result of results) {
+    const metricByRankTargetID = new Map<RankTargetID, ContentMetric>(
+      result.metrics.map((metric): [RankTargetID, ContentMetric] => [
+        metric.rank_target_id,
+        metric,
+      ]),
+    );
+
+    for (const target of result.targets) {
+      if (!target.is_active) {
+        continue;
+      }
+
+      const metric = metricByRankTargetID.get(target.id);
+      index.set(targetKey(target.content_type, target.content_id), {
+        rankTargetId: target.id,
+        score: metric?.score,
+        reasons: [],
+        metric,
+      });
+    }
+  }
+
+  return index;
+}
+
+function mergeRankIndexes(
+  base: Map<string, RankTargetInfo>,
+  preferred: Map<string, RankTargetInfo>,
+): Map<string, RankTargetInfo> {
+  const merged = new Map(base);
+
+  for (const [key, info] of preferred) {
+    const fallback = merged.get(key);
+    merged.set(key, {
+      rankTargetId: info.rankTargetId,
+      score: info.score ?? fallback?.score,
+      reasons: info.reasons.length > 0 ? info.reasons : (fallback?.reasons ?? []),
+      metric: info.metric ?? fallback?.metric,
+    });
+  }
+
+  return merged;
+}
+
 async function listCatalogRecommendations(): Promise<RecommendationItem[]> {
   const pages = await Promise.all([
-    listRecommendations("bean", recommendationPageLimit, 0).catch(() => []),
-    listRecommendations(
-      "bean",
-      recommendationPageLimit,
-      recommendationPageLimit,
-    ).catch(() => []),
-    listRecommendations("article", recommendationPageLimit, 0).catch(() => []),
-    listRecommendations(
-      "article",
-      recommendationPageLimit,
-      recommendationPageLimit,
-    ).catch(() => []),
+    listRecommendations("bean", recommendationPageLimit).catch(() => []),
+    listRecommendations("article", recommendationPageLimit).catch(() => []),
   ]);
 
   return pages.flat();
 }
 
+async function listCatalogRankings(): Promise<RankingResult[]> {
+  return Promise.all([
+    listRankings("bean", rankingPageLimit, 0).catch(() => emptyRankingResult()),
+    listRankings("article", rankingPageLimit, 0).catch(() => emptyRankingResult()),
+  ]);
+}
+
 async function listFeedRecommendations(): Promise<RecommendationItem[]> {
-  return listRecommendations("all", recommendationPageLimit, 0).catch(() => []);
+  return listRecommendations("all", recommendationPageLimit).catch(() => []);
 }
 
 function rankInfoFor(
@@ -304,13 +361,19 @@ export function useFeedData(activeFilter: FeedFilter): UseFeedDataResult {
 
     try {
       await ensureGuestSession();
-      const [beans, articles, recommendations, catalogRecommendations] =
-        await Promise.all([
-          listBeans(100),
-          listArticles(100),
-          listFeedRecommendations(),
-          listCatalogRecommendations(),
-        ]);
+      const [
+        beans,
+        articles,
+        recommendations,
+        catalogRecommendations,
+        catalogRankings,
+      ] = await Promise.all([
+        listBeans(100),
+        listArticles(100),
+        listFeedRecommendations(),
+        listCatalogRecommendations(),
+        listCatalogRankings(),
+      ]);
 
       const beansByID = new Map<number, Bean>(
         beans.map((bean) => [bean.id, bean]),
@@ -318,10 +381,10 @@ export function useFeedData(activeFilter: FeedFilter): UseFeedDataResult {
       const articlesByID = new Map<number, Article>(
         articles.map((article) => [article.id, article]),
       );
-      const rankIndex = buildRankIndex([
-        ...catalogRecommendations,
-        ...recommendations,
-      ]);
+      const rankIndex = mergeRankIndexes(
+        buildRankingIndex(catalogRankings),
+        buildRecommendationIndex([...catalogRecommendations, ...recommendations]),
+      );
 
       const recommendedItems = recommendations.flatMap((item) => {
         const info = rankInfoFor(rankIndex, item.content_type, item.content_id);

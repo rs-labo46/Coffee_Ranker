@@ -130,6 +130,34 @@ func (h *SavedItemController) Exists(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]bool{"saved": exists})
 }
 
+// 認証済みUserの評価一覧ページングを検証。
+// Good一覧や評価済み状態の復元に使う。
+func (h *RatingController) List(c echo.Context) error {
+	// 認証済みUserIDはbodyから受け取らず、MiddlewareがContextへ入れた値だけを使う。
+	userID, err := mustUserID(c)
+	if err != nil {
+		return writeError(c, err)
+	}
+	limit, err := parseIntQuery(c, "limit")
+	if err != nil {
+		return writeError(c, err)
+	}
+	offset, err := parseIntQuery(c, "offset")
+	if err != nil {
+		return writeError(c, err)
+	}
+	page, err := h.validator.List(validator.PageQuery{Limit: limit, Offset: offset})
+	if err != nil {
+		return writeError(c, err)
+	}
+	ratings, err := h.ratings.List(c.Request().Context(), userID, usecase.Page{Limit: page.Limit, Offset: page.Offset})
+	if err != nil {
+		return writeError(c, err)
+	}
+	// Usecaseの結果をHTTPレスポンスDTOとして返す。
+	return c.JSON(http.StatusOK, ratings)
+}
+
 // 認証済みUserの評価Requestを検証してRatingUsecaseへ渡す。
 // rating_scoreは+1/-1だけ許可し、Guest不可判定はUsecaseで行う。
 func (h *RatingController) Rate(c echo.Context) error {

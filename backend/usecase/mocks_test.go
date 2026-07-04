@@ -746,6 +746,9 @@ func (f *fakeRatingRepo) Create(ctx context.Context, rating *model.Rating) error
 func (f *fakeRatingRepo) FindByUserAndTarget(ctx context.Context, userID uint64, rankTargetID uint64) (*model.Rating, error) {
 	return &model.Rating{UserID: userID, RankTargetID: rankTargetID}, nil
 }
+func (f *fakeRatingRepo) ListByUserID(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Rating, error) {
+	return []*model.Rating{}, nil
+}
 func (f *fakeRatingRepo) Upsert(ctx context.Context, userID uint64, rankTargetID uint64, score entity.RatingScore, now time.Time) (*model.Rating, error) {
 	if f.upsertErr != nil {
 		return nil, f.upsertErr
@@ -763,6 +766,8 @@ func (f *fakeRatingRepo) CountByTarget(ctx context.Context, rankTargetID uint64)
 func (f *fakeRatingRepo) AggregateByTarget(ctx context.Context, rankTargetID uint64) (repository.RatingAggregate, error) {
 	return repository.RatingAggregate{}, nil
 }
+
+var _ repository.IRatingRepository = (*fakeRatingRepo)(nil)
 
 type fakeContentMetricRepo struct {
 	bulk       []*model.ContentMetric

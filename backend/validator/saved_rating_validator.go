@@ -89,3 +89,9 @@ func (v *RatingValidator) Rate(input RatingRequest) (RatingRequest, error) {
 func (v *RatingValidator) RankTargetID(id uint64) error {
 	return ValidateID(id)
 }
+
+// 評価一覧のページング条件を検証。
+// 認証済みUserの評価データ取得はUsecaseで行う。
+func (v *RatingValidator) List(input PageQuery) (PageQuery, error) {
+	return NormalizePage(input, 20, 100, 10000)
+}

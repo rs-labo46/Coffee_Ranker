@@ -12,6 +12,7 @@ type AuthPageProps = {
   onSignup: (name: string, email: string, password: string) => Promise<void>;
   onLogout: () => Promise<void>;
   onSelectItem: (item: FeedItem) => void;
+  onOpenAdmin: () => void;
 };
 
 type Mode = "login" | "signup";
@@ -107,6 +108,7 @@ export function AuthPage({
   onSignup,
   onLogout,
   onSelectItem,
+  onOpenAdmin,
 }: AuthPageProps) {
   const [mode, setMode] = useState<Mode>("login");
   const [accountSection, setAccountSection] = useState<AccountSection>("saved");
@@ -180,9 +182,18 @@ export function AuthPage({
           <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-stone-300">
             role: <strong className="text-white">{user.role}</strong>
           </div>
+          {user.role === "admin" ? (
+            <button
+              type="button"
+              className="mt-5 w-full rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-stone-950 transition hover:bg-amber-200"
+              onClick={onOpenAdmin}
+            >
+              管理画面を開く
+            </button>
+          ) : null}
           <button
             type="button"
-            className="mt-5 w-full rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15 disabled:opacity-60"
+            className="mt-3 w-full rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15 disabled:opacity-60"
             onClick={() => void onLogout()}
             disabled={loading}
           >

@@ -850,6 +850,11 @@ func (r *fakeRatingRepo) FindByUserAndTarget(ctx context.Context, userID uint64,
 	return nil, entity.ErrRatingNotFound
 }
 
+// Userの評価一覧はController単体テストでは空で返す。
+func (r *fakeRatingRepo) ListByUserID(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Rating, error) {
+	return []*model.Rating{}, nil
+}
+
 // 評価登録または更新を成功扱いにし、評価modelを返す。
 func (r *fakeRatingRepo) Upsert(ctx context.Context, userID uint64, rankTargetID uint64, score entity.RatingScore, now time.Time) (*model.Rating, error) {
 	return &model.Rating{ID: 1, UserID: userID, RankTargetID: rankTargetID, Score: score}, nil

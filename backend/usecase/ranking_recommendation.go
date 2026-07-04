@@ -32,9 +32,10 @@ type RecommendationUsecase struct {
 
 // ランキング指標と、それに対応するBean/Article本体をまとめる。
 type RankingResult struct {
-	Metrics  []*model.ContentMetric
-	Beans    []*model.Bean
-	Articles []*model.Article
+	Metrics  []*model.ContentMetric `json:"metrics"`
+	Targets  []*model.RankTarget    `json:"targets"`
+	Beans    []*model.Bean          `json:"beans"`
+	Articles []*model.Article       `json:"articles"`
 }
 
 // 推薦取得に必要なactor、content_type、ページング条件をまとめる。
@@ -106,6 +107,10 @@ func (u *RankingUsecase) List(ctx context.Context, contentType *entity.ContentTy
 	}
 
 	// RankTargetのcontent_typeを見て、BeanIDとArticleIDへ分ける。
+	targets, err := rankTargetsFromMetrics(metrics)
+	if err != nil {
+		return RankingResult{}, err
+	}
 	beanIDs, articleIDs, err := splitContentIDsFromMetrics(metrics)
 	if err != nil {
 		return RankingResult{}, err
@@ -125,6 +130,7 @@ func (u *RankingUsecase) List(ctx context.Context, contentType *entity.ContentTy
 
 	return RankingResult{
 		Metrics:  metrics,
+		Targets:  targets,
 		Beans:    beans,
 		Articles: articles,
 	}, nil
@@ -609,6 +615,26 @@ func isViewedRecommendationEvent(eventType entity.EventType) bool {
 	default:
 		return false
 	}
+}
+
+// ContentMetric内にPreloadされたRankTargetをレスポンス用に取り出す。
+// FrontendがBean/Article一覧とrank_target_idを安定して紐付けるために使う。
+func rankTargetsFromMetrics(metrics []*model.ContentMetric) ([]*model.RankTarget, error) {
+	targets := make([]*model.RankTarget, 0, len(metrics))
+
+	for _, metric := range metrics {
+		if metric == nil {
+			continue
+		}
+		if metric.RankTarget.ID == 0 || metric.RankTarget.ContentID == 0 {
+			return nil, entity.ErrRankTargetNotFound
+		}
+
+		target := metric.RankTarget
+		targets = append(targets, &target)
+	}
+
+	return targets, nil
 }
 
 // ContentMetric内のRankTargetからBean IDとArticle IDを分ける。

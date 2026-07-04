@@ -170,6 +170,22 @@ func (u *RatingUsecase) Rate(ctx context.Context, userID uint64, rankTargetID ui
 	return rating, nil
 }
 
+// 指定Userの評価一覧をページング付きで取得。
+func (u *RatingUsecase) List(ctx context.Context, userID uint64, page Page) ([]*model.Rating, error) {
+	// 評価一覧はログインUserのみ取得できる。
+	if err := requireUserID(userID); err != nil {
+		return nil, err
+	}
+
+	// limit/offsetを安全な範囲に補正・検証。
+	page, err := normalizePage(page, 20, 100, 10000)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.ratings.ListByUserID(ctx, userID, page.Limit, page.Offset)
+}
+
 // 指定Userの評価を削除。
 func (u *RatingUsecase) Delete(ctx context.Context, userID uint64, rankTargetID uint64) error {
 	// 評価削除はログインUserのみ許可。

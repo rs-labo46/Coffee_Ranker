@@ -1,15 +1,16 @@
 import { useEffect, useRef } from "react";
 import { ContentCard } from "./ContentCard";
-import type { FeedItem, RatingScore, User } from "../types";
+import type { FeedItem, FeedItemKey, RatingScore, User } from "../types";
 
 type ReelsFeedProps = {
   items: FeedItem[];
   activeItem: FeedItem | null;
-  restoreScrollTop: number | null;
+  restoreItemKey?: FeedItemKey | null;
+  restoreScrollTop?: number | null;
   restoreRevision: number;
   user: User | null;
   showScore?: boolean;
-  onScrollPositionChange: (scrollTop: number) => void;
+  onScrollPositionChange?: (scrollTop: number) => void;
   onActiveChange: (item: FeedItem) => void;
   onSelect: (item: FeedItem) => void;
   onSave: (item: FeedItem) => Promise<void>;
@@ -24,7 +25,8 @@ const feedOffset = "translate-y-6 lg:translate-y-0";
 export function ReelsFeed({
   items,
   activeItem,
-  restoreScrollTop,
+  restoreItemKey = null,
+  restoreScrollTop = null,
   restoreRevision,
   user,
   showScore = false,
@@ -35,17 +37,36 @@ export function ReelsFeed({
   onRate,
 }: ReelsFeedProps) {
   const feedRef = useRef<HTMLDivElement | null>(null);
+  const restoredRevisionRef = useRef<number>(0);
 
   useEffect(() => {
     const root = feedRef.current;
-    if (root === null || restoreScrollTop === null || restoreRevision === 0) {
+    if (
+      root === null ||
+      restoreRevision === 0 ||
+      restoredRevisionRef.current === restoreRevision
+    ) {
       return;
     }
 
+    restoredRevisionRef.current = restoreRevision;
     window.requestAnimationFrame(() => {
-      root.scrollTop = restoreScrollTop;
+      if (restoreItemKey !== null) {
+        const target = Array.from(
+          root.querySelectorAll<HTMLElement>("[data-item-key]"),
+        ).find((element) => element.getAttribute("data-item-key") === restoreItemKey);
+
+        if (target !== undefined) {
+          target.scrollIntoView({ block: "start", behavior: "auto" });
+          return;
+        }
+      }
+
+      if (restoreScrollTop !== null) {
+        root.scrollTop = restoreScrollTop;
+      }
     });
-  }, [restoreScrollTop, restoreRevision]);
+  }, [restoreItemKey, restoreScrollTop, restoreRevision]);
 
   useEffect(() => {
     const root = feedRef.current;
@@ -102,7 +123,7 @@ export function ReelsFeed({
       ref={feedRef}
       aria-label="コーヒーフィード"
       onScroll={(event) => {
-        onScrollPositionChange(event.currentTarget.scrollTop);
+        onScrollPositionChange?.(event.currentTarget.scrollTop);
       }}
     >
       {items.map((item) => (
