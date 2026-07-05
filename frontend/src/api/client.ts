@@ -11,6 +11,7 @@ import type {
   EventType,
   FeedFilter,
   GuestSessionResponse,
+  ModalDisplayLog,
   Placement,
   Rating,
   RatingScore,
@@ -64,6 +65,10 @@ function setAccessToken(token: string | null): void {
 
 export function getAccessToken(): string | null {
   return accessToken;
+}
+
+function hasAccessToken(): boolean {
+  return accessToken !== null;
 }
 
 export function clearAuthTokens(): void {
@@ -303,6 +308,7 @@ export async function listRecommendations(
       limit,
       offset,
     }),
+    { auth: hasAccessToken() },
   );
 }
 
@@ -315,6 +321,7 @@ export async function searchBeans(state: SearchState): Promise<Bean[]> {
       limit: 30,
       offset: 0,
     }),
+    { auth: hasAccessToken() },
   );
 }
 
@@ -329,6 +336,7 @@ export async function searchArticles(
       limit: 30,
       offset: 0,
     }),
+    { auth: hasAccessToken() },
   );
 }
 
@@ -347,7 +355,12 @@ export async function recordEvent(payload: {
   dedup_key?: string;
   dedup_ttl_seconds?: number;
 }): Promise<void> {
-  await request<void>("/events", { method: "POST", body: payload, csrf: true });
+  await request<void>("/events", {
+    method: "POST",
+    auth: hasAccessToken(),
+    body: payload,
+    csrf: true,
+  });
 }
 
 export async function listSavedItems(
@@ -422,13 +435,44 @@ export async function rateItem(
 export async function showModal(
   rankTargetId: number,
   pagePath: string,
-): Promise<unknown> {
-  return request<unknown>("/modals", {
+): Promise<ModalDisplayLog> {
+  return request<ModalDisplayLog>("/modals", {
     method: "POST",
+    auth: hasAccessToken(),
     csrf: true,
     body: {
       rank_target_id: rankTargetId,
       trigger: "scroll_end",
+      page_path: pagePath,
+    },
+  });
+}
+
+export async function clickModal(
+  modalDisplayLogId: number,
+  pagePath: string,
+): Promise<void> {
+  await request<void>("/modals/click", {
+    method: "POST",
+    auth: hasAccessToken(),
+    csrf: true,
+    body: {
+      modal_display_log_id: modalDisplayLogId,
+      page_path: pagePath,
+    },
+  });
+}
+
+export async function closeModal(
+  modalDisplayLogId: number,
+  pagePath: string,
+): Promise<void> {
+  await request<void>("/modals/close", {
+    method: "POST",
+    auth: hasAccessToken(),
+    csrf: true,
+    body: {
+      modal_display_log_id: modalDisplayLogId,
       page_path: pagePath,
     },
   });

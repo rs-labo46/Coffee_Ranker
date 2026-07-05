@@ -10,6 +10,30 @@ export type Placement =
   | "modal"
   | "saved_list";
 
+export type ModalTrigger =
+  | "first_visit"
+  | "scroll_end"
+  | "bean_stay"
+  | "article_stay"
+  | "same_origin_viewed"
+  | "same_roast_clicked"
+  | "saved_content"
+  | "good_rating"
+  | "re_search";
+
+export type ModalDisplayLog = {
+  id: number;
+  user_id?: number;
+  guest_session_id?: number;
+  rank_target_id: number;
+  trigger: ModalTrigger;
+  page_path: string;
+  shown_at: string;
+  clicked_at?: string;
+  closed_at?: string;
+  created_at: string;
+};
+
 export type EventType =
   | "content_view"
   | "impression"

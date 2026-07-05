@@ -153,13 +153,47 @@ function statusClass(status: string): string {
   }
 }
 
-function makeSlug(title: string): string {
-  return title
+const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function makeSlug(text: string): string {
+  return text
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
+}
+
+function timestampSlug(): string {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+  ].join("");
+  return `article-${stamp}`;
+}
+
+function resolveArticleSlug(inputSlug: string, title: string): string {
+  const slug = makeSlug(inputSlug);
+  if (slugPattern.test(slug) && slug.length >= 3 && slug.length <= 120) {
+    return slug;
+  }
+
+  const titleSlug = makeSlug(title);
+  if (
+    slugPattern.test(titleSlug) &&
+    titleSlug.length >= 3 &&
+    titleSlug.length <= 120
+  ) {
+    return titleSlug;
+  }
+
+  return timestampSlug();
 }
 
 function AdminCard({
@@ -416,13 +450,29 @@ export function AdminPage({ user, notice, onSessionExpired }: AdminPageProps) {
 
   async function submitArticle(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+
+    const title = articleInput.title.trim();
+    const summary = articleInput.summary.trim();
+    const slug = resolveArticleSlug(articleInput.slug, title);
+
+    if (title === "") {
+      setNoticeState({ tone: "error", message: "記事タイトルを入力してください" });
+      return;
+    }
+
+    if (summary === "") {
+      setNoticeState({ tone: "error", message: "記事概要を入力してください" });
+      return;
+    }
+
+    setArticleInput((current) => ({ ...current, title, summary, slug }));
     setLoading(true);
     try {
       const created = await adminCreateArticle({
         ...articleInput,
-        title: articleInput.title.trim(),
-        slug: articleInput.slug.trim(),
-        summary: articleInput.summary.trim(),
+        title,
+        slug,
+        summary,
         body: toOptionalText(articleInput.body),
         category: articleInput.category,
         source_name: toOptionalText(articleInput.source_name),
@@ -674,9 +724,16 @@ export function AdminPage({ user, notice, onSessionExpired }: AdminPageProps) {
                 <form className="grid gap-3" onSubmit={(event) => void submitArticle(event)}>
                   <input className={inputClass} value={articleInput.title} onChange={(event) => {
                     const title = event.target.value;
-                    setArticleInput((current) => ({ ...current, title, slug: current.slug === "" ? makeSlug(title) : current.slug }));
+                    setArticleInput((current) => ({
+                      ...current,
+                      title,
+                      slug: current.slug === "" ? makeSlug(title) : current.slug,
+                    }));
                   }} placeholder="記事タイトル" maxLength={120} />
-                  <input className={inputClass} value={articleInput.slug} onChange={(event) => setArticleField("slug", event.target.value)} placeholder="slug" maxLength={120} />
+                  <input className={inputClass} value={articleInput.slug} onChange={(event) => setArticleField("slug", makeSlug(event.target.value))} placeholder="slug 未入力時は自動生成" maxLength={120} />
+                  <p className="-mt-1 text-xs leading-5 text-stone-500">
+                    slugは英小文字・数字・ハイフンのみ。日本語タイトルの場合は作成時にarticle-年月日時分秒形式へ自動補正します。
+                  </p>
                   <select className={selectClass} value={articleInput.category ?? "brewing"} onChange={(event) => setArticleField("category", event.target.value as AdminArticleInput["category"])}>
                     <option value="brewing">抽出</option>
                     <option value="roast">焙煎</option>

@@ -169,6 +169,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
+	startDailyRankingBatch(ctx, rankingBatchUsecase, log.Default())
+
 	go func() {
 		if err := e.Start(":" + cfg.Port); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			e.Logger.Fatal(err)

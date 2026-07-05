@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  clickModal,
+  closeModal,
   getArticle,
   getBean,
   isAuthError,
@@ -60,6 +62,8 @@ function App() {
     useState<FeedItemKey | null>(null);
   const [modalItem, setModalItem] = useState<FeedItem | null>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [modalDisplayLogId, setModalDisplayLogId] = useState<number | null>(null);
+  const [modalPagePath, setModalPagePath] = useState<string>("/");
   const [savedTargetIds, setSavedTargetIds] = useState<Set<RankTargetID>>(
     () => new Set<RankTargetID>(),
   );
@@ -410,12 +414,12 @@ function App() {
         return;
       }
 
+      const sourcePagePath = pathFor(item);
       modalShownKeys.current.add(modalKey);
-      void showModal(candidate.rankTargetId, pathFor(item))
-        .then((result) => {
-          if (result === undefined) {
-            return;
-          }
+      void showModal(candidate.rankTargetId, sourcePagePath)
+        .then((log) => {
+          setModalDisplayLogId(log.id);
+          setModalPagePath(sourcePagePath);
           setModalItem(candidate);
           setModalOpen(true);
         })
@@ -547,13 +551,34 @@ function App() {
     [onSelect],
   );
 
+  const closeRecommendationModal = useCallback(() => {
+    const logID = modalDisplayLogId;
+    const pagePath = modalPagePath;
+    setModalOpen(false);
+    setModalDisplayLogId(null);
+
+    if (logID !== null) {
+      void closeModal(logID, pagePath).catch(() => undefined);
+    }
+  }, [modalDisplayLogId, modalPagePath]);
+
   const openModalItem = useCallback(() => {
     if (modalItem === null) {
       return;
     }
+
+    const item = modalItem;
+    const logID = modalDisplayLogId;
+    const pagePath = modalPagePath;
     setModalOpen(false);
-    void onSelect(modalItem, detailReturnView);
-  }, [detailReturnView, modalItem, onSelect]);
+    setModalDisplayLogId(null);
+
+    if (logID !== null) {
+      void clickModal(logID, pagePath).catch(() => undefined);
+    }
+
+    void onSelect(item, detailReturnView);
+  }, [detailReturnView, modalDisplayLogId, modalItem, modalPagePath, onSelect]);
 
   return (
     <div className="min-h-svh bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.16),transparent_30%),linear-gradient(135deg,#0c0a09,#1c1917_42%,#0c0a09)] text-stone-100">
@@ -656,7 +681,7 @@ function App() {
       <RecommendationModal
         open={modalOpen}
         item={modalItem}
-        onClose={() => setModalOpen(false)}
+        onClose={closeRecommendationModal}
         onOpen={openModalItem}
       />
       <BottomNav view={view} onViewChange={selectView} />
