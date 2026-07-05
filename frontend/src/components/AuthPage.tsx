@@ -247,9 +247,9 @@ export function AuthPage({
   return (
     <section
       id="login-panel"
-      className="mx-auto grid max-w-5xl gap-6 px-4 py-8 lg:grid-cols-[1fr_420px] lg:px-8"
+      className="mx-auto flex w-full max-w-[420px] justify-center px-4 py-8 lg:px-0"
     >
-      <aside className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
+      <aside className="w-full rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
         <p className="py-5 text-lg font-bold uppercase tracking-[0.28em] text-amber-300">
           Account
         </p>

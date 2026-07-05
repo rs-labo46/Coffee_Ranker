@@ -34,6 +34,12 @@ export type ModalDisplayLog = {
   created_at: string;
 };
 
+export type ModalShowResponse = ModalDisplayLog & {
+  target?: RankTarget;
+  bean?: Bean;
+  article?: Article;
+};
+
 export type EventType =
   | "content_view"
   | "impression"
@@ -228,7 +234,8 @@ export type AdminPanel =
   | "articles"
   | "relations"
   | "batches"
-  | "audit";
+  | "audit"
+  | "rate_limits";
 
 export type AdminBeanInput = {
   name: string;

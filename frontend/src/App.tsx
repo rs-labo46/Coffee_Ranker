@@ -31,6 +31,7 @@ import type {
   FeedFilter,
   FeedItem,
   FeedItemKey,
+  ModalShowResponse,
   Notice as NoticeType,
   Placement,
   RankTargetID,
@@ -46,6 +47,87 @@ function pathFor(item: FeedItem): string {
     return `/articles/${item.article.slug}`;
   }
   return `/beans/${item.contentId}`;
+}
+
+function roastLabel(value: string): string {
+  switch (value) {
+    case "light":
+      return "浅煎り";
+    case "medium":
+      return "中煎り";
+    case "dark":
+      return "深煎り";
+    default:
+      return "Bean";
+  }
+}
+
+function categoryLabel(value: string | undefined): string {
+  switch (value) {
+    case "brewing":
+      return "抽出";
+    case "roast":
+      return "焙煎";
+    case "beans":
+      return "豆知識";
+    case "recipe":
+      return "レシピ";
+    default:
+      return "Article";
+  }
+}
+
+function modalResponseToItem(response: ModalShowResponse): FeedItem | null {
+  const target = response.target;
+  if (target === undefined) {
+    return null;
+  }
+
+  if (target.content_type === "bean" && response.bean !== undefined) {
+    const bean = response.bean;
+    return {
+      key: `bean-${bean.id}`,
+      contentType: "bean",
+      contentId: bean.id,
+      rankTargetId: target.id,
+      title: bean.name,
+      subtitle:
+        [bean.origin, bean.roaster].filter(Boolean).join(" / ") ||
+        "Coffee Bean",
+      summary:
+        bean.description ??
+        bean.flavor_note ??
+        "行動データから推薦されたコーヒー豆です。",
+      body: bean.description,
+      imageUrl: bean.image_url,
+      badge: roastLabel(bean.roast_level),
+      reasons: [],
+      bean,
+    };
+  }
+
+  if (target.content_type === "article" && response.article !== undefined) {
+    const article = response.article;
+    return {
+      key: `article-${article.id}`,
+      contentType: "article",
+      contentId: article.id,
+      rankTargetId: target.id,
+      title: article.title,
+      subtitle:
+        [categoryLabel(article.category), article.source_name]
+          .filter(Boolean)
+          .join(" / ") || "Article",
+      summary: article.summary,
+      body: article.body,
+      imageUrl: article.image_url,
+      badge: categoryLabel(article.category),
+      reasons: [],
+      article,
+    };
+  }
+
+  return null;
 }
 
 function App() {
@@ -408,29 +490,35 @@ function App() {
       return undefined;
     }
 
-    const timer = window.setTimeout(() => {
-      const sourcePagePath = pathFor(item);
-      modalShownKeys.current.add(modalKey);
-      void showModal(sourceRankTargetId, sourcePagePath)
-        .then((log) => {
-          const candidate = [...catalogItems, ...feedItems].find(
-            (content) =>
-              content.key !== item.key &&
-              content.rankTargetId === log.rank_target_id,
-          );
-          if (candidate === undefined) {
-            return;
-          }
-          setModalDisplayLogId(log.id);
-          setModalPagePath(sourcePagePath);
-          setModalItem(candidate);
-          setModalOpen(true);
-        })
-        .catch(() => undefined);
-    }, 9000);
+    const timer = window.setTimeout(
+      () => {
+        const sourcePagePath = pathFor(item);
+        const trigger =
+          item.contentType === "bean" ? "bean_stay" : "article_stay";
+        modalShownKeys.current.add(modalKey);
+        void showModal(sourceRankTargetId, sourcePagePath, trigger)
+          .then((log) => {
+            const existing = [...catalogItems, ...feedItems].find(
+              (content) =>
+                content.key !== item.key &&
+                content.rankTargetId === log.rank_target_id,
+            );
+            const candidate = existing ?? modalResponseToItem(log);
+            if (candidate === null) {
+              return;
+            }
+            setModalDisplayLogId(log.id);
+            setModalPagePath(sourcePagePath);
+            setModalItem(withActionState(candidate));
+            setModalOpen(true);
+          })
+          .catch(() => undefined);
+      },
+      item.contentType === "bean" ? 15000 : 30000,
+    );
 
     return () => window.clearTimeout(timer);
-  }, [catalogItems, detailItem, feedItems, view]);
+  }, [catalogItems, detailItem, feedItems, view, withActionState]);
 
   const onSave = useCallback(
     async (item: FeedItem) => {

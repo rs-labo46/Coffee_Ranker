@@ -11,7 +11,8 @@ import type {
   EventType,
   FeedFilter,
   GuestSessionResponse,
-  ModalDisplayLog,
+  ModalShowResponse,
+  ModalTrigger,
   Placement,
   Rating,
   RatingScore,
@@ -432,14 +433,15 @@ export async function rateItem(
 export async function showModal(
   sourceRankTargetId: number,
   pagePath: string,
-): Promise<ModalDisplayLog> {
-  return request<ModalDisplayLog>("/modals", {
+  trigger: ModalTrigger = "scroll_end",
+): Promise<ModalShowResponse> {
+  return request<ModalShowResponse>("/modals", {
     method: "POST",
     auth: hasAccessToken(),
     csrf: true,
     body: {
       source_rank_target_id: sourceRankTargetId,
-      trigger: "scroll_end",
+      trigger,
       page_path: pagePath,
     },
   });
@@ -491,6 +493,24 @@ export function stableSearchHash(state: SearchState): string {
   return `search_${Math.abs(hash).toString(36)}`;
 }
 
+export async function adminListBeans(limit = 100, offset = 0): Promise<Bean[]> {
+  return request<Bean[]>(withQuery("/admin/beans", { limit, offset }), {
+    auth: true,
+  });
+}
+
+export async function adminUpdateBean(
+  id: number,
+  input: AdminBeanInput,
+): Promise<Bean> {
+  return request<Bean>(`/admin/beans/${id}`, {
+    method: "PUT",
+    auth: true,
+    csrf: true,
+    body: input,
+  });
+}
+
 export async function adminCreateBean(input: AdminBeanInput): Promise<Bean> {
   return request<Bean>("/admin/beans", {
     method: "POST",
@@ -513,6 +533,28 @@ export async function adminUnpublishBean(id: number): Promise<void> {
     method: "PATCH",
     auth: true,
     csrf: true,
+  });
+}
+
+export async function adminListArticles(
+  limit = 100,
+  offset = 0,
+): Promise<import("../types").Article[]> {
+  return request<import("../types").Article[]>(
+    withQuery("/admin/articles", { limit, offset }),
+    { auth: true },
+  );
+}
+
+export async function adminUpdateArticle(
+  id: number,
+  input: AdminArticleInput,
+): Promise<import("../types").Article> {
+  return request<import("../types").Article>(`/admin/articles/${id}`, {
+    method: "PUT",
+    auth: true,
+    csrf: true,
+    body: input,
   });
 }
 
@@ -560,6 +602,17 @@ export async function adminCreateRelation(
   });
 }
 
+export async function adminDeleteRelation(
+  beanId: number,
+  articleId: number,
+): Promise<void> {
+  await request<void>(`/admin/bean-articles/${beanId}/${articleId}`, {
+    method: "DELETE",
+    auth: true,
+    csrf: true,
+  });
+}
+
 export async function adminReplaceBeanArticles(
   beanId: number,
   articleIds: number[],
@@ -598,12 +651,41 @@ export async function adminDeleteExpired(): Promise<unknown> {
   });
 }
 
+export async function adminLatestBatchRun(jobName: string): Promise<BatchRun> {
+  return request<BatchRun>(
+    withQuery("/admin/batches/latest", { job_name: jobName }),
+    {
+      auth: true,
+    },
+  );
+}
+
 export async function adminListBatchRuns(
   limit = 20,
   offset = 0,
 ): Promise<BatchRun[]> {
   return request<BatchRun[]>(withQuery("/admin/batches", { limit, offset }), {
     auth: true,
+  });
+}
+
+export async function adminFindAuditLogsByRequestID(
+  requestId: string,
+): Promise<AuditLog[]> {
+  return request<AuditLog[]>(
+    `/admin/audit-logs/request/${encodeURIComponent(requestId)}`,
+    {
+      auth: true,
+    },
+  );
+}
+
+export async function adminResetRateLimit(key: string): Promise<void> {
+  await request<void>("/admin/rate-limits/reset", {
+    method: "POST",
+    auth: true,
+    csrf: true,
+    body: { key },
   });
 }
 
