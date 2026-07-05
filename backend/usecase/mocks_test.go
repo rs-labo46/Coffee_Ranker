@@ -354,6 +354,7 @@ func (f *fakeAuditRepo) ListByRequestID(ctx context.Context, requestID string) (
 }
 
 type fakeBeanRepo struct {
+	beans                []*model.Bean
 	created              *model.Bean
 	updated              *model.Bean
 	byID                 *model.Bean
@@ -402,6 +403,10 @@ func (f *fakeBeanRepo) FindPublishedByID(ctx context.Context, id uint64) (*model
 	}
 	return &model.Bean{ID: id, IsPublished: true}, nil
 }
+func (f *fakeBeanRepo) ListAll(ctx context.Context, limit int, offset int) ([]*model.Bean, error) {
+	return f.beans, nil
+}
+
 func (f *fakeBeanRepo) ListPublished(ctx context.Context, limit int, offset int) ([]*model.Bean, error) {
 	f.listLimit = limit
 	f.listOffset = offset
@@ -440,6 +445,7 @@ func (f *fakeBeanRepo) UpdatePublished(ctx context.Context, id uint64, isPublish
 }
 
 type fakeArticleRepo struct {
+	articles             []*model.Article
 	created              *model.Article
 	updated              *model.Article
 	byID                 *model.Article
@@ -502,6 +508,10 @@ func (f *fakeArticleRepo) FindPublishedBySlug(ctx context.Context, slug string) 
 	}
 	return &model.Article{ID: 1, Slug: slug, IsPublished: true}, nil
 }
+func (f *fakeArticleRepo) ListAll(ctx context.Context, limit int, offset int) ([]*model.Article, error) {
+	return f.articles, nil
+}
+
 func (f *fakeArticleRepo) ListPublished(ctx context.Context, limit int, offset int) ([]*model.Article, error) {
 	f.listLimit = limit
 	f.listOffset = offset

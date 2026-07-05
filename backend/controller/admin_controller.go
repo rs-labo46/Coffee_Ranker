@@ -85,6 +85,27 @@ func NewAdminRateLimitController(rates *usecase.AdminRateLimitUsecase, validator
 	return &AdminRateLimitController{rates: rates, validator: validator}
 }
 
+// Admin用に公開状態に関係なくBean一覧を取得する。
+func (h *AdminBeanController) List(c echo.Context) error {
+	meta, err := adminMeta(c)
+	if err != nil {
+		return writeError(c, err)
+	}
+	limit, err := parseIntQuery(c, "limit")
+	if err != nil {
+		return writeError(c, err)
+	}
+	offset, err := parseIntQuery(c, "offset")
+	if err != nil {
+		return writeError(c, err)
+	}
+	beans, err := h.beans.List(c.Request().Context(), usecase.Page{Limit: limit, Offset: offset}, meta)
+	if err != nil {
+		return writeError(c, err)
+	}
+	return c.JSON(http.StatusOK, beans)
+}
+
 // AdminのBean作成Requestを検証してAdminBeanUsecaseへ渡す。
 // 管理者権限はAdminGuard前提で、DB作成可否はUsecaseが判断する。
 func (h *AdminBeanController) Create(c echo.Context) error {
@@ -177,6 +198,27 @@ func (h *AdminBeanController) Unpublish(c echo.Context) error {
 		return writeError(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+// Admin用に公開状態に関係なくArticle一覧を取得する。
+func (h *AdminArticleController) List(c echo.Context) error {
+	meta, err := adminMeta(c)
+	if err != nil {
+		return writeError(c, err)
+	}
+	limit, err := parseIntQuery(c, "limit")
+	if err != nil {
+		return writeError(c, err)
+	}
+	offset, err := parseIntQuery(c, "offset")
+	if err != nil {
+		return writeError(c, err)
+	}
+	articles, err := h.articles.List(c.Request().Context(), usecase.Page{Limit: limit, Offset: offset}, meta)
+	if err != nil {
+		return writeError(c, err)
+	}
+	return c.JSON(http.StatusOK, articles)
 }
 
 // AdminのArticle作成Requestを検証してAdminArticleUsecaseへ渡す。

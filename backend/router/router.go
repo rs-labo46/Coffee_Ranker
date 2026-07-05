@@ -157,11 +157,13 @@ func registerAdminRoutes(e *echo.Echo, c Controllers, mw Middlewares) {
 	adminWithCSRF := []echo.MiddlewareFunc{mw.RateLimitAdmin, mw.CSRF}
 	adminBatchWithCSRF := []echo.MiddlewareFunc{mw.RateLimitAdminBatch, mw.CSRF}
 
+	admin.GET("/beans", c.AdminBean.List, mw.RateLimitAdmin)
 	admin.POST("/beans", c.AdminBean.Create, adminWithCSRF...)
 	admin.PUT("/beans/:id", c.AdminBean.Update, adminWithCSRF...)
 	admin.PATCH("/beans/:id/publish", c.AdminBean.Publish, adminWithCSRF...)
 	admin.PATCH("/beans/:id/unpublish", c.AdminBean.Unpublish, adminWithCSRF...)
 
+	admin.GET("/articles", c.AdminArticle.List, mw.RateLimitAdmin)
 	admin.POST("/articles", c.AdminArticle.Create, adminWithCSRF...)
 	admin.PUT("/articles/:id", c.AdminArticle.Update, adminWithCSRF...)
 	admin.PATCH("/articles/:id/publish", c.AdminArticle.Publish, adminWithCSRF...)

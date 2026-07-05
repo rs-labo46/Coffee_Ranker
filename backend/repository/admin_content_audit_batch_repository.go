@@ -16,6 +16,7 @@ type IBeanRepository interface {
 	Update(ctx context.Context, bean *model.Bean) error
 	FindByID(ctx context.Context, id uint64) (*model.Bean, error)
 	FindPublishedByID(ctx context.Context, id uint64) (*model.Bean, error)
+	ListAll(ctx context.Context, limit int, offset int) ([]*model.Bean, error)
 	ListPublished(ctx context.Context, limit int, offset int) ([]*model.Bean, error)
 	SearchPublished(ctx context.Context, filter BeanSearchFilter) ([]*model.Bean, error)
 	FindByIDs(ctx context.Context, ids []uint64) ([]*model.Bean, error)
@@ -32,6 +33,7 @@ type IArticleRepository interface {
 	FindPublishedByID(ctx context.Context, id uint64) (*model.Article, error)
 	FindBySlug(ctx context.Context, slug string) (*model.Article, error)
 	FindPublishedBySlug(ctx context.Context, slug string) (*model.Article, error)
+	ListAll(ctx context.Context, limit int, offset int) ([]*model.Article, error)
 	ListPublished(ctx context.Context, limit int, offset int) ([]*model.Article, error)
 	SearchPublished(ctx context.Context, filter ArticleSearchFilter) ([]*model.Article, error)
 	FindByIDs(ctx context.Context, ids []uint64) ([]*model.Article, error)

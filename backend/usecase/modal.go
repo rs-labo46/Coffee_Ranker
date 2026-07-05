@@ -28,6 +28,8 @@ type ModalUsecase struct {
 	blocks      repository.IModalBlockLogRepository
 	rankTargets repository.IRankTargetRepository
 	metrics     repository.IContentMetricRepository
+	beans       repository.IBeanRepository
+	articles    repository.IArticleRepository
 	saved       repository.ISavedItemRepository
 	events      repository.IActionEventRepository
 	suppression repository.IModalSuppressionRepository
@@ -41,6 +43,15 @@ type ShowModalInput struct {
 	SourceRankTargetID uint64
 	Trigger            entity.ModalTrigger
 	PagePath           string
+}
+
+// モーダル表示結果。
+// 表示ログだけでなく、Frontendが実際に表示できるようRankTargetと本文データも返す。
+type ModalShowResult struct {
+	model.ModalDisplayLog
+	Target  *model.RankTarget `json:"target,omitempty"`
+	Bean    *model.Bean       `json:"bean,omitempty"`
+	Article *model.Article    `json:"article,omitempty"`
 }
 
 // モーダルクリック・クローズに必要なactorと表示ログID。
@@ -63,14 +74,16 @@ func NewModalUsecase(displays repository.IModalDisplayLogRepository, blocks repo
 }
 
 // 推薦候補選定にランキング指標を使うModalUsecaseを生成する。
-func NewModalUsecaseWithMetrics(displays repository.IModalDisplayLogRepository, blocks repository.IModalBlockLogRepository, rankTargets repository.IRankTargetRepository, metrics repository.IContentMetricRepository, saved repository.ISavedItemRepository, events repository.IActionEventRepository, suppression repository.IModalSuppressionRepository) *ModalUsecase {
+func NewModalUsecaseWithMetrics(displays repository.IModalDisplayLogRepository, blocks repository.IModalBlockLogRepository, rankTargets repository.IRankTargetRepository, metrics repository.IContentMetricRepository, beans repository.IBeanRepository, articles repository.IArticleRepository, saved repository.ISavedItemRepository, events repository.IActionEventRepository, suppression repository.IModalSuppressionRepository) *ModalUsecase {
 	u := NewModalUsecase(displays, blocks, rankTargets, saved, events, suppression)
 	u.metrics = metrics
+	u.beans = beans
+	u.articles = articles
 	return u
 }
 
 // 表示条件を確認し、候補選定・表示ログ・event・Redis抑制を記録する。
-func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.ModalDisplayLog, error) {
+func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*ModalShowResult, error) {
 	// UserまたはGuestSessionの片方だけであることを確認。
 	if err := requireActor(input.Actor); err != nil {
 		return nil, err
@@ -154,7 +167,43 @@ func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.M
 		})
 	}
 
-	return log, nil
+	return u.modalShowResult(ctx, log)
+}
+
+func (u *ModalUsecase) modalShowResult(ctx context.Context, log *model.ModalDisplayLog) (*ModalShowResult, error) {
+	if log == nil {
+		return nil, entity.ErrModalDisplayLogNotFound
+	}
+
+	result := &ModalShowResult{ModalDisplayLog: *log}
+	if u.rankTargets == nil {
+		return result, nil
+	}
+
+	target, err := u.rankTargets.FindByID(ctx, log.RankTargetID)
+	if err != nil {
+		return result, nil
+	}
+	result.Target = target
+
+	switch target.ContentType {
+	case entity.ContentTypeBean:
+		if u.beans != nil {
+			bean, err := u.beans.FindByID(ctx, target.ContentID)
+			if err == nil {
+				result.Bean = bean
+			}
+		}
+	case entity.ContentTypeArticle:
+		if u.articles != nil {
+			article, err := u.articles.FindByID(ctx, target.ContentID)
+			if err == nil {
+				result.Article = article
+			}
+		}
+	}
+
+	return result, nil
 }
 
 const modalCandidateFetchLimit = 50

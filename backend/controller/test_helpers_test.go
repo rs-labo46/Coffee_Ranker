@@ -204,6 +204,10 @@ func (r *fakeBeanRepo) FindPublishedByID(ctx context.Context, id uint64) (*model
 }
 
 // 公開Bean一覧取得を成功扱いにする。
+func (r *fakeBeanRepo) ListAll(ctx context.Context, limit int, offset int) ([]*model.Bean, error) {
+	return []*model.Bean{}, nil
+}
+
 func (r *fakeBeanRepo) ListPublished(ctx context.Context, limit int, offset int) ([]*model.Bean, error) {
 	return []*model.Bean{{ID: 1, Name: "Bean", RoastLevel: entity.RoastLevelMedium, IsPublished: true}}, nil
 }
@@ -273,6 +277,10 @@ func (r *fakeArticleRepo) FindPublishedBySlug(ctx context.Context, slug string) 
 }
 
 // 公開Article一覧取得を成功扱いにする。
+func (r *fakeArticleRepo) ListAll(ctx context.Context, limit int, offset int) ([]*model.Article, error) {
+	return []*model.Article{}, nil
+}
+
 func (r *fakeArticleRepo) ListPublished(ctx context.Context, limit int, offset int) ([]*model.Article, error) {
 	return []*model.Article{{ID: 1, Title: "Article", Slug: "article", Summary: "summary", IsPublished: true}}, nil
 }

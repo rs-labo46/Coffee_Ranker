@@ -116,6 +116,16 @@ func (r *GormBeanRepository) FindPublishedByID(ctx context.Context, id uint64) (
 	return &bean, nil
 }
 
+// Admin用に公開状態に関係なくBeanを新しい順に一覧取得。
+func (r *GormBeanRepository) ListAll(ctx context.Context, limit int, offset int) ([]*model.Bean, error) {
+	var beans []*model.Bean
+	err := r.db.WithContext(ctx).Order("id DESC").Limit(limit).Offset(offset).Find(&beans).Error
+	if err != nil {
+		return nil, mapDBError(err)
+	}
+	return beans, nil
+}
+
 // 公開中Beanを新しい順に一覧取得。
 func (r *GormBeanRepository) ListPublished(ctx context.Context, limit int, offset int) ([]*model.Bean, error) {
 	var beans []*model.Bean
@@ -244,6 +254,16 @@ func (r *GormArticleRepository) FindPublishedBySlug(ctx context.Context, slug st
 		return nil, mapDBError(err)
 	}
 	return &article, nil
+}
+
+// Admin用に公開状態に関係なくArticleを新しい順に一覧取得。
+func (r *GormArticleRepository) ListAll(ctx context.Context, limit int, offset int) ([]*model.Article, error) {
+	var articles []*model.Article
+	err := r.db.WithContext(ctx).Order("id DESC").Limit(limit).Offset(offset).Find(&articles).Error
+	if err != nil {
+		return nil, mapDBError(err)
+	}
+	return articles, nil
 }
 
 // 公開中Articleを公開日時順に一覧取得。

@@ -818,6 +818,45 @@ paths:
           csrfHeader: []
           csrfCookie: []
   /ratings:
+    get:
+      summary: List ratings
+      description: 認証済みUserが付けたGood/Bad評価一覧を返す。
+      tags:
+        - rating
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Rating"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      security:
+        - bearerAuth: []
     post:
       summary: Rate item
       tags:
@@ -988,6 +1027,45 @@ paths:
           csrfHeader: []
           csrfCookie: []
   /admin/beans:
+    get:
+      summary: Admin list beans
+      description: 管理者向けに公開・非公開を含むBean一覧を返す。
+      tags:
+        - admin-beans
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      security:
+        - bearerAuth: []
     post:
       summary: Admin create bean
       tags:
@@ -1101,6 +1179,45 @@ paths:
           csrfHeader: []
           csrfCookie: []
   /admin/articles:
+    get:
+      summary: Admin list articles
+      description: 管理者向けに公開・非公開を含むArticle一覧を返す。
+      tags:
+        - admin-articles
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      security:
+        - bearerAuth: []
     post:
       summary: Admin create article
       tags:

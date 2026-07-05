@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -19,8 +20,10 @@ func startDailyRankingBatch(ctx context.Context, ranking *usecase.RankingBatchUs
 	}
 
 	go func() {
+		location := batchLocation()
 		for {
-			next := nextDailyBatchTime(time.Now(), entity.RankingBatchHour)
+			now := time.Now().In(location)
+			next := nextDailyBatchTime(now, entity.RankingBatchHour)
 			timer := time.NewTimer(time.Until(next))
 
 			select {
@@ -37,6 +40,18 @@ func startDailyRankingBatch(ctx context.Context, ranking *usecase.RankingBatchUs
 			}
 		}
 	}()
+}
+
+func batchLocation() *time.Location {
+	name := os.Getenv("BATCH_TIMEZONE")
+	if name == "" {
+		name = "Asia/Tokyo"
+	}
+	location, err := time.LoadLocation(name)
+	if err != nil {
+		return time.FixedZone("Asia/Tokyo", 9*60*60)
+	}
+	return location
 }
 
 func nextDailyBatchTime(now time.Time, hour int) time.Time {

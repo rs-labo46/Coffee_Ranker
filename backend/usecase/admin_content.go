@@ -96,6 +96,19 @@ func requireAdminMeta(meta AdminMeta) error {
 	return nil
 }
 
+// Admin用に公開状態に関係なくBean一覧を取得する。
+// 下書き・非公開Beanも管理画面で扱えるようにする。
+func (u *AdminBeanUsecase) List(ctx context.Context, page Page, meta AdminMeta) ([]*model.Bean, error) {
+	if err := requireAdminMeta(meta); err != nil {
+		return nil, err
+	}
+	page, err := normalizePage(page, 20, 100, 10000)
+	if err != nil {
+		return nil, err
+	}
+	return u.beans.ListAll(ctx, page.Limit, page.Offset)
+}
+
 // Beanを新規作成。
 // 作成時点ではランキング対象にしない。公開時にRankTargetを作る。
 func (u *AdminBeanUsecase) Create(ctx context.Context, bean *model.Bean, meta AdminMeta) error {
@@ -240,6 +253,19 @@ func (u *AdminBeanUsecase) Unpublish(ctx context.Context, beanID uint64, meta Ad
 	))
 
 	return nil
+}
+
+// Admin用に公開状態に関係なくArticle一覧を取得する。
+// 下書き・非公開Articleも管理画面で扱えるようにする。
+func (u *AdminArticleUsecase) List(ctx context.Context, page Page, meta AdminMeta) ([]*model.Article, error) {
+	if err := requireAdminMeta(meta); err != nil {
+		return nil, err
+	}
+	page, err := normalizePage(page, 20, 100, 10000)
+	if err != nil {
+		return nil, err
+	}
+	return u.articles.ListAll(ctx, page.Limit, page.Offset)
 }
 
 // Articleを新規作成。
