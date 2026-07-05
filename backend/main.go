@@ -91,7 +91,7 @@ func main() {
 	ratingUsecase := usecase.NewRatingUsecase(ratingRepository, rankTargetRepository, actionEventRepository)
 	rankingUsecase := usecase.NewRankingUsecase(contentMetricRepository, beanRepository, articleRepository)
 	recommendationUsecase := usecase.NewRecommendationUsecase(contentMetricRepository, interestProfileRepository, savedItemRepository, actionEventRepository, beanRepository, articleRepository)
-	modalUsecase := usecase.NewModalUsecase(modalDisplayLogRepository, modalBlockLogRepository, rankTargetRepository, savedItemRepository, actionEventRepository, modalSuppressionRepository)
+	modalUsecase := usecase.NewModalUsecaseWithMetrics(modalDisplayLogRepository, modalBlockLogRepository, rankTargetRepository, contentMetricRepository, savedItemRepository, actionEventRepository, modalSuppressionRepository)
 	rankingBatchUsecase := usecase.NewRankingBatchUsecase(actionEventRepository, batchRunRepository, batchLockRepository, auditLogRepository, txManager)
 	interestBatchUsecase := usecase.NewInterestBatchUsecase(actionEventRepository, interestProfileRepository, batchRunRepository, batchLockRepository, auditLogRepository, cfg.InterestProfileTTL)
 

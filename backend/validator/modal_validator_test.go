@@ -16,10 +16,13 @@ func TestModalValidatorShow(t *testing.T) {
 		t.Fatalf("unexpected show modal request: %+v", got)
 	}
 
-	_, err = v.Show(ShowModalRequest{RankTargetID: 0, Trigger: entity.ModalTriggerFirstVisit, PagePath: "/beans/1"})
-	assertErrorIs(t, err, entity.ErrInvalidInput)
+	got, err = v.Show(ShowModalRequest{SourceRankTargetID: 1, Trigger: entity.ModalTriggerScrollEnd, PagePath: "/beans/1"})
+	assertNoError(t, err)
+	if got.SourceRankTargetID != 1 || got.RankTargetID != 0 {
+		t.Fatalf("unexpected backend-selected modal request: %+v", got)
+	}
 
-	_, err = v.Show(ShowModalRequest{RankTargetID: 1, Trigger: entity.ModalTrigger("unknown"), PagePath: "/beans/1"})
+	_, err = v.Show(ShowModalRequest{SourceRankTargetID: 0, Trigger: entity.ModalTrigger("unknown"), PagePath: "/beans/1"})
 	assertErrorIs(t, err, entity.ErrInvalidInput)
 
 	_, err = v.Show(ShowModalRequest{RankTargetID: 1, Trigger: entity.ModalTriggerFirstVisit, PagePath: "javascript:alert(1)"})

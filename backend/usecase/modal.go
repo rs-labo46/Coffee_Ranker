@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -26,18 +27,20 @@ type ModalUsecase struct {
 	displays    repository.IModalDisplayLogRepository
 	blocks      repository.IModalBlockLogRepository
 	rankTargets repository.IRankTargetRepository
+	metrics     repository.IContentMetricRepository
 	saved       repository.ISavedItemRepository
 	events      repository.IActionEventRepository
 	suppression repository.IModalSuppressionRepository
 }
 
-// モーダル表示判断に必要なactor、候補、表示理由、表示場所。
-// RankTargetIDは、すでに候補として選ばれた対象を想定。
+// モーダル表示判断に必要なactor、表示理由、表示場所。
+// RankTargetIDが指定された場合はその候補を検証する。未指定の場合はBackendで候補を選ぶ。
 type ShowModalInput struct {
-	Actor        Actor
-	RankTargetID uint64
-	Trigger      entity.ModalTrigger
-	PagePath     string
+	Actor              Actor
+	RankTargetID       uint64
+	SourceRankTargetID uint64
+	Trigger            entity.ModalTrigger
+	PagePath           string
 }
 
 // モーダルクリック・クローズに必要なactorと表示ログID。
@@ -59,15 +62,22 @@ func NewModalUsecase(displays repository.IModalDisplayLogRepository, blocks repo
 	}
 }
 
-// 表示条件を確認し、表示ログ・event・Redis抑制を記録する。
+// 推薦候補選定にランキング指標を使うModalUsecaseを生成する。
+func NewModalUsecaseWithMetrics(displays repository.IModalDisplayLogRepository, blocks repository.IModalBlockLogRepository, rankTargets repository.IRankTargetRepository, metrics repository.IContentMetricRepository, saved repository.ISavedItemRepository, events repository.IActionEventRepository, suppression repository.IModalSuppressionRepository) *ModalUsecase {
+	u := NewModalUsecase(displays, blocks, rankTargets, saved, events, suppression)
+	u.metrics = metrics
+	return u
+}
+
+// 表示条件を確認し、候補選定・表示ログ・event・Redis抑制を記録する。
 func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.ModalDisplayLog, error) {
 	// UserまたはGuestSessionの片方だけであることを確認。
 	if err := requireActor(input.Actor); err != nil {
 		return nil, err
 	}
 
-	// 表示候補、表示ページ、表示理由が不足している場合は不正入力。
-	if input.RankTargetID == 0 || input.PagePath == "" || !validModalTrigger(input.Trigger) {
+	// 表示ページ、表示理由が不足している場合は不正入力。
+	if input.PagePath == "" || !validModalTrigger(input.Trigger) {
 		return nil, entity.ErrInvalidInput
 	}
 
@@ -81,18 +91,13 @@ func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.M
 		return nil, err
 	}
 
-	// 表示候補が有効なランキング対象か確認。
-	if err := ensureActiveRankTarget(ctx, u.rankTargets, input.RankTargetID); err != nil {
-		return nil, err
-	}
-
 	// 同一ページでの表示上限を確認。
 	pageCount, err := u.displays.CountShownOnPage(ctx, input.Actor.UserID, input.Actor.GuestSessionID, input.PagePath, since)
 	if err != nil {
 		return nil, err
 	}
 	if pageCount >= int64(entity.MaxModalPerPage) {
-		return nil, u.blockModal(ctx, input.Actor, &input.RankTargetID, entity.ModalBlockPageLimitReached, input.PagePath, now)
+		return nil, u.blockModal(ctx, input.Actor, nil, entity.ModalBlockPageLimitReached, input.PagePath, now)
 	}
 
 	// 同一セッションでの表示上限を確認。
@@ -101,43 +106,27 @@ func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.M
 		return nil, err
 	}
 	if sessionCount >= int64(entity.MaxModalPerSession) {
-		return nil, u.blockModal(ctx, input.Actor, &input.RankTargetID, entity.ModalBlockSessionLimitReached, input.PagePath, now)
+		return nil, u.blockModal(ctx, input.Actor, nil, entity.ModalBlockSessionLimitReached, input.PagePath, now)
 	}
 
-	// Userの場合、保存済みコンテンツは再推薦しない。
-	if input.Actor.UserID != nil {
-		saved, err := u.saved.ExistsActive(ctx, *input.Actor.UserID, input.RankTargetID)
+	rankTargetID := input.RankTargetID
+	if rankTargetID == 0 {
+		rankTargetID, err = u.selectCandidate(ctx, input.Actor, input.SourceRankTargetID, key, input.PagePath)
 		if err != nil {
 			return nil, err
 		}
-		if saved {
-			return nil, u.blockModal(ctx, input.Actor, &input.RankTargetID, entity.ModalBlockAlreadySaved, input.PagePath, now)
-		}
 	}
 
-	// 同じ候補をクールダウン内に再表示しない。
-	shown, err := u.suppression.WasShown(ctx, key, input.RankTargetID)
-	if err != nil {
-		return nil, err
-	}
-	if shown {
-		return nil, u.blockModal(ctx, input.Actor, &input.RankTargetID, entity.ModalBlockRecentlyShown, input.PagePath, now)
-	}
-
-	// 直近で閉じられた候補をすぐ再表示しない。
-	closed, err := u.suppression.WasClosed(ctx, key, input.RankTargetID)
-	if err != nil {
-		return nil, err
-	}
-	if closed {
-		return nil, u.blockModal(ctx, input.Actor, &input.RankTargetID, entity.ModalBlockRecentlyClosed, input.PagePath, now)
+	// 互換用に明示候補が送られた場合も、Backend側で表示してよい候補か再検証する。
+	if err := u.validateCandidate(ctx, input.Actor, rankTargetID, key); err != nil {
+		return nil, u.blockModal(ctx, input.Actor, &rankTargetID, blockReasonForCandidateError(err), input.PagePath, now)
 	}
 
 	// モーダルを表示した記録をDBに保存するためのデータを作る。
 	log := &model.ModalDisplayLog{
 		UserID:         input.Actor.UserID,
 		GuestSessionID: input.Actor.GuestSessionID,
-		RankTargetID:   input.RankTargetID,
+		RankTargetID:   rankTargetID,
 		Trigger:        input.Trigger,
 		PagePath:       input.PagePath,
 		ShownAt:        now,
@@ -148,7 +137,7 @@ func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.M
 
 	// 同じ候補をクールダウン内に再表示しないよう、Redisへ一時記録を残す。
 	// 失敗しても表示ログ作成済みのため、モーダル表示自体は成功扱いにする。
-	_ = u.suppression.SetShown(ctx, key, input.RankTargetID, cooldown)
+	_ = u.suppression.SetShown(ctx, key, rankTargetID, cooldown)
 
 	// modal_impression eventも補助記録。
 	// event作成に失敗しても、表示本体は成功扱いに。
@@ -157,7 +146,7 @@ func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.M
 			UserID:            input.Actor.UserID,
 			GuestSessionID:    input.Actor.GuestSessionID,
 			EventType:         entity.EventTypeModalImpression,
-			RankTargetID:      &input.RankTargetID,
+			RankTargetID:      &rankTargetID,
 			Placement:         entity.PlacementModal,
 			ModalDisplayLogID: &log.ID,
 			PagePath:          input.PagePath,
@@ -166,6 +155,121 @@ func (u *ModalUsecase) Show(ctx context.Context, input ShowModalInput) (*model.M
 	}
 
 	return log, nil
+}
+
+const modalCandidateFetchLimit = 50
+
+// Backend側で表示候補を選ぶ。表示済み・閉じた候補・保存済み・現在閲覧中の候補は除外する。
+func (u *ModalUsecase) selectCandidate(ctx context.Context, actor Actor, sourceRankTargetID uint64, actorKey string, pagePath string) (uint64, error) {
+	ids, err := u.modalCandidateIDs(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, id := range ids {
+		if id == 0 || id == sourceRankTargetID {
+			continue
+		}
+		if err := u.validateCandidate(ctx, actor, id, actorKey); err != nil {
+			continue
+		}
+		return id, nil
+	}
+
+	_ = u.blocks.Create(ctx, modalBlock(actor, nil, entity.ModalBlockNoCandidate, pagePath, time.Now()))
+	return 0, entity.ErrModalCandidateNotFound
+}
+
+// ランキング指標があればscore順、なければ有効RankTargetの新しい順を候補にする。
+func (u *ModalUsecase) modalCandidateIDs(ctx context.Context) ([]uint64, error) {
+	if u.metrics != nil {
+		metrics, err := u.metrics.ListRanking(ctx, nil, modalCandidateFetchLimit, 0)
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]uint64, 0, len(metrics))
+		for _, metric := range metrics {
+			if metric == nil || metric.RankTargetID == 0 {
+				continue
+			}
+			ids = append(ids, metric.RankTargetID)
+		}
+		if len(ids) > 0 {
+			return ids, nil
+		}
+	}
+
+	beanTargets, err := u.rankTargets.ListActiveByType(ctx, entity.ContentTypeBean)
+	if err != nil {
+		return nil, err
+	}
+	articleTargets, err := u.rankTargets.ListActiveByType(ctx, entity.ContentTypeArticle)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]uint64, 0, len(beanTargets)+len(articleTargets))
+	for _, target := range append(beanTargets, articleTargets...) {
+		if target == nil || target.ID == 0 {
+			continue
+		}
+		ids = append(ids, target.ID)
+	}
+	return ids, nil
+}
+
+// 候補が有効で、保存済み・表示済み・直近クローズ済みではないことを確認する。
+func (u *ModalUsecase) validateCandidate(ctx context.Context, actor Actor, rankTargetID uint64, actorKey string) error {
+	if err := ensureActiveRankTarget(ctx, u.rankTargets, rankTargetID); err != nil {
+		return err
+	}
+
+	if actor.UserID != nil {
+		saved, err := u.saved.ExistsActive(ctx, *actor.UserID, rankTargetID)
+		if err != nil {
+			return err
+		}
+		if saved {
+			return errModalAlreadySaved
+		}
+	}
+
+	shown, err := u.suppression.WasShown(ctx, actorKey, rankTargetID)
+	if err != nil {
+		return err
+	}
+	if shown {
+		return errModalRecentlyShown
+	}
+
+	closed, err := u.suppression.WasClosed(ctx, actorKey, rankTargetID)
+	if err != nil {
+		return err
+	}
+	if closed {
+		return errModalRecentlyClosed
+	}
+
+	return nil
+}
+
+var (
+	errModalAlreadySaved   = errors.New("modal candidate already saved")
+	errModalRecentlyShown  = errors.New("modal candidate recently shown")
+	errModalRecentlyClosed = errors.New("modal candidate recently closed")
+)
+
+func blockReasonForCandidateError(err error) entity.ModalBlockReason {
+	switch {
+	case errors.Is(err, errModalAlreadySaved):
+		return entity.ModalBlockAlreadySaved
+	case errors.Is(err, errModalRecentlyShown):
+		return entity.ModalBlockRecentlyShown
+	case errors.Is(err, errModalRecentlyClosed):
+		return entity.ModalBlockRecentlyClosed
+	default:
+		return entity.ModalBlockNoCandidate
+	}
 }
 
 // actor本人の表示ログにクリック時刻を入れ、modal_click eventをbest effortで記録する。

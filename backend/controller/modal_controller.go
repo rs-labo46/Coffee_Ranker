@@ -39,7 +39,7 @@ func (h *ModalController) Show(c echo.Context) error {
 	if err != nil {
 		return writeError(c, err)
 	}
-	log, err := h.modal.Show(c.Request().Context(), usecase.ShowModalInput{Actor: actor, RankTargetID: valid.RankTargetID, Trigger: valid.Trigger, PagePath: valid.PagePath})
+	log, err := h.modal.Show(c.Request().Context(), usecase.ShowModalInput{Actor: actor, RankTargetID: valid.RankTargetID, SourceRankTargetID: valid.SourceRankTargetID, Trigger: valid.Trigger, PagePath: valid.PagePath})
 	if err != nil {
 		return writeError(c, err)
 	}

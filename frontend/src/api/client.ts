@@ -372,10 +372,7 @@ export async function listSavedItems(
   });
 }
 
-export async function listRatings(
-  limit = 100,
-  offset = 0,
-): Promise<Rating[]> {
+export async function listRatings(limit = 100, offset = 0): Promise<Rating[]> {
   return request<Rating[]>(withQuery("/ratings", { limit, offset }), {
     auth: true,
   });
@@ -433,7 +430,7 @@ export async function rateItem(
 }
 
 export async function showModal(
-  rankTargetId: number,
+  sourceRankTargetId: number,
   pagePath: string,
 ): Promise<ModalDisplayLog> {
   return request<ModalDisplayLog>("/modals", {
@@ -441,7 +438,7 @@ export async function showModal(
     auth: hasAccessToken(),
     csrf: true,
     body: {
-      rank_target_id: rankTargetId,
+      source_rank_target_id: sourceRankTargetId,
       trigger: "scroll_end",
       page_path: pagePath,
     },

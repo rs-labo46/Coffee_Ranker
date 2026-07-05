@@ -5,9 +5,10 @@ import "coffee-ranker/entity"
 type ModalValidator struct{}
 
 type ShowModalRequest struct {
-	RankTargetID uint64              `json:"rank_target_id"`
-	Trigger      entity.ModalTrigger `json:"trigger"`
-	PagePath     string              `json:"page_path"`
+	RankTargetID       uint64              `json:"rank_target_id,omitempty"`
+	SourceRankTargetID uint64              `json:"source_rank_target_id,omitempty"`
+	Trigger            entity.ModalTrigger `json:"trigger"`
+	PagePath           string              `json:"page_path"`
 }
 
 type ModalActionRequest struct {
@@ -20,12 +21,20 @@ func NewModalValidator() *ModalValidator {
 	return &ModalValidator{}
 }
 
-// モーダル表示Requestのrank_target_id、trigger、page_pathを検証。
-// 表示可否、表示回数上限、保存済み除外はModalUsecaseで判断。
+// モーダル表示Requestの候補ID、source ID、trigger、page_pathを検証。
+// rank_target_id未指定時の候補選定、表示可否、保存済み除外はModalUsecaseで判断。
 func (v *ModalValidator) Show(input ShowModalRequest) (ShowModalRequest, error) {
-	// IDはDB存在確認ではなく、0でない正の値かだけ確認。
-	if err := ValidateID(input.RankTargetID); err != nil {
-		return ShowModalRequest{}, err
+	// rank_target_idは互換用の明示候補。未指定ならBackend側で候補を選ぶ。
+	if input.RankTargetID != 0 {
+		if err := ValidateID(input.RankTargetID); err != nil {
+			return ShowModalRequest{}, err
+		}
+	}
+	// source_rank_target_idは現在見ている対象。候補から除外するために使う。
+	if input.SourceRankTargetID != 0 {
+		if err := ValidateID(input.SourceRankTargetID); err != nil {
+			return ShowModalRequest{}, err
+		}
 	}
 	if err := validateModalTrigger(input.Trigger); err != nil {
 		return ShowModalRequest{}, err

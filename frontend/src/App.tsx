@@ -62,7 +62,9 @@ function App() {
     useState<FeedItemKey | null>(null);
   const [modalItem, setModalItem] = useState<FeedItem | null>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [modalDisplayLogId, setModalDisplayLogId] = useState<number | null>(null);
+  const [modalDisplayLogId, setModalDisplayLogId] = useState<number | null>(
+    null,
+  );
   const [modalPagePath, setModalPagePath] = useState<string>("/");
   const [savedTargetIds, setSavedTargetIds] = useState<Set<RankTargetID>>(
     () => new Set<RankTargetID>(),
@@ -400,24 +402,25 @@ function App() {
       return undefined;
     }
 
+    const sourceRankTargetId = item.rankTargetId;
     const modalKey = `${item.key}:detail_modal`;
     if (modalShownKeys.current.has(modalKey)) {
       return undefined;
     }
 
     const timer = window.setTimeout(() => {
-      const candidate = state.items.find(
-        (content) =>
-          content.key !== item.key && content.rankTargetId !== undefined,
-      );
-      if (candidate === undefined || candidate.rankTargetId === undefined) {
-        return;
-      }
-
       const sourcePagePath = pathFor(item);
       modalShownKeys.current.add(modalKey);
-      void showModal(candidate.rankTargetId, sourcePagePath)
+      void showModal(sourceRankTargetId, sourcePagePath)
         .then((log) => {
+          const candidate = [...catalogItems, ...feedItems].find(
+            (content) =>
+              content.key !== item.key &&
+              content.rankTargetId === log.rank_target_id,
+          );
+          if (candidate === undefined) {
+            return;
+          }
           setModalDisplayLogId(log.id);
           setModalPagePath(sourcePagePath);
           setModalItem(candidate);
@@ -427,7 +430,7 @@ function App() {
     }, 9000);
 
     return () => window.clearTimeout(timer);
-  }, [detailItem, state.items, view]);
+  }, [catalogItems, detailItem, feedItems, view]);
 
   const onSave = useCallback(
     async (item: FeedItem) => {
