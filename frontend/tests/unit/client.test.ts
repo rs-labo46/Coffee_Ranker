@@ -174,10 +174,14 @@ describe("api/client", () => {
       JSON.stringify({ key: "rate:login:test" }),
     );
   });
-
+  //認証エラー
   it("getRatingは404だけnullに変換し、それ以外の認証エラーは判定できる", async () => {
-    const fetchMock = vi.fn(async (): Promise<Response> =>
-      jsonResponse({ code: "not_found", message: "not found" }, { status: 404 }),
+    const fetchMock = vi.fn(
+      async (): Promise<Response> =>
+        jsonResponse(
+          { code: "not_found", message: "not found" },
+          { status: 404 },
+        ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
