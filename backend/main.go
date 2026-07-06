@@ -106,6 +106,9 @@ func main() {
 	rateLimitUsecase := usecase.NewRateLimitUsecase(rateLimitRepository)
 
 	cookieSameSite := parseSameSite(cfg.CookieSameSite)
+	if cfg.CookieSecure {
+		cookieSameSite = http.SameSiteNoneMode
+	}
 
 	cookieConfig := controller.CookieConfig{
 		Secure:          cfg.CookieSecure,

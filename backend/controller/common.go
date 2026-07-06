@@ -38,6 +38,13 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
+func cookieSameSite(cfg CookieConfig, fallback http.SameSite) http.SameSite {
+	if cfg.Secure {
+		return http.SameSiteNoneMode
+	}
+	return fallback
+}
+
 // Usecase/Validatorのエラーを共通Error Responseへ変換。
 // ControllerごとにHTTP変換が散らばらないようにする。
 func writeError(c echo.Context, err error) error {
@@ -200,7 +207,7 @@ func setRefreshCookie(c echo.Context, cfg CookieConfig, token string) {
 	if maxAge <= 0 {
 		maxAge = int((14 * 24 * time.Hour).Seconds())
 	}
-	cookie := &http.Cookie{Name: RefreshTokenCookieName, Value: token, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: cfg.SameSite}
+	cookie := &http.Cookie{Name: RefreshTokenCookieName, Value: token, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: cookieSameSite(cfg, http.SameSiteStrictMode)}
 	c.SetCookie(cookie)
 }
 
@@ -211,7 +218,7 @@ func setGuestSessionCookie(c echo.Context, cfg CookieConfig, sessionKey string) 
 	if maxAge <= 0 {
 		maxAge = int((7 * 24 * time.Hour).Seconds())
 	}
-	cookie := &http.Cookie{Name: GuestSessionCookieName, Value: sessionKey, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: cfg.SameSite}
+	cookie := &http.Cookie{Name: GuestSessionCookieName, Value: sessionKey, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: cookieSameSite(cfg, http.SameSiteLaxMode)}
 	c.SetCookie(cookie)
 	c.Response().Header().Set(GuestSessionHeaderName, sessionKey)
 }
@@ -226,7 +233,7 @@ func clearAuthCookies(c echo.Context, cfg CookieConfig) {
 // 指定Cookieを期限切れにして削除。
 // Cookie削除処理を共通化し、設定漏れを防ぐ。
 func clearCookie(c echo.Context, cfg CookieConfig, name string, httpOnly bool) {
-	c.SetCookie(&http.Cookie{Name: name, Value: "", Path: "/", Domain: cfg.Domain, MaxAge: -1, HttpOnly: httpOnly, Secure: cfg.Secure, SameSite: cfg.SameSite})
+	c.SetCookie(&http.Cookie{Name: name, Value: "", Path: "/", Domain: cfg.Domain, MaxAge: -1, HttpOnly: httpOnly, Secure: cfg.Secure, SameSite: cookieSameSite(cfg, http.SameSiteStrictMode)})
 }
 
 // refresh_token Cookieから生RefreshTokenを取り出す。
