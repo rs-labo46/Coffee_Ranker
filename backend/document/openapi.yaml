@@ -87,6 +87,188 @@ paths:
           required: false
           schema:
             type: string
+  /beans:
+    get:
+      summary: List beans
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+  /beans/{id}:
+    get:
+      summary: Get bean
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+  /beans/{id}/articles:
+    get:
+      summary: List related articles for bean
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BeanArticle"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+  /articles:
+    get:
+      summary: List articles
+      tags:
+        - content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+  /rankings:
+    get:
+      summary: List rankings
+      tags:
+        - ranking
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RankingResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: content_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - bean
+              - article
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+  /rankings/top:
+    get:
+      summary: Top rankings
+      tags:
+        - ranking
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentMetric"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
   /auth/signup:
     post:
       summary: Signup
@@ -212,125 +394,6 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
-  /beans:
-    get:
-      summary: List beans
-      tags:
-        - content
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Bean"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-  /beans/{id}:
-    get:
-      summary: Get bean
-      tags:
-        - content
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Bean"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-  /beans/{id}/articles:
-    get:
-      summary: List related articles for bean
-      tags:
-        - content
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BeanArticle"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-  /articles:
-    get:
-      summary: List articles
-      tags:
-        - content
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Article"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
   /articles/{slug}:
     get:
       summary: Get article by slug
@@ -418,294 +481,6 @@ paths:
             type: integer
       security:
         - bearerAuth: []
-  /search/beans:
-    get:
-      summary: Search beans
-      tags:
-        - search
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Bean"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: q
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: origin
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: roast_level
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - light
-              - medium
-              - dark
-        - name: acidity
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: bitterness
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: flavor
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: aroma
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: body
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - score
-              - newest
-              - popular
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-      security:
-        - {}
-        - bearerAuth: []
-        - guestSessionCookie: []
-  /search/articles:
-    get:
-      summary: Search articles
-      tags:
-        - search
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Article"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: q
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: category
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - brewing
-              - roast
-              - beans
-              - recipe
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - score
-              - newest
-              - popular
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-      security:
-        - {}
-        - bearerAuth: []
-        - guestSessionCookie: []
-  /rankings:
-    get:
-      summary: List rankings
-      tags:
-        - ranking
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RankingResult"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: content_type
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - bean
-              - article
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-  /rankings/top:
-    get:
-      summary: Top rankings
-      tags:
-        - ranking
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ContentMetric"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-  /recommendations:
-    get:
-      summary: List recommendations
-      tags:
-        - recommendation
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/RecommendationItem"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: content_type
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - bean
-              - article
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-      security:
-        - {}
-        - bearerAuth: []
-        - guestSessionCookie: []
-  /events:
-    post:
-      summary: Record event
-      tags:
-        - event
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ActionEvent"
-        "204":
-          description: No Content
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/EventRequest"
-      security:
-        - csrfHeader: []
-          csrfCookie: []
-        - bearerAuth: []
-          csrfHeader: []
-          csrfCookie: []
-        - guestSessionCookie: []
-          csrfHeader: []
-          csrfCookie: []
   /saved:
     get:
       summary: List saved items
@@ -933,6 +708,231 @@ paths:
             format: int64
       security:
         - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+  /search/beans:
+    get:
+      summary: Search beans
+      tags:
+        - search
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bean"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: origin
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: roast_level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - light
+              - medium
+              - dark
+        - name: acidity
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: bitterness
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: flavor
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: aroma
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: body
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - score
+              - newest
+              - popular
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - {}
+        - bearerAuth: []
+        - guestSessionCookie: []
+  /search/articles:
+    get:
+      summary: Search articles
+      tags:
+        - search
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - brewing
+              - roast
+              - beans
+              - recipe
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - score
+              - newest
+              - popular
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - {}
+        - bearerAuth: []
+        - guestSessionCookie: []
+  /recommendations:
+    get:
+      summary: List recommendations
+      tags:
+        - recommendation
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecommendationItem"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - name: content_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - bean
+              - article
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      security:
+        - {}
+        - bearerAuth: []
+        - guestSessionCookie: []
+  /events:
+    post:
+      summary: Record event
+      tags:
+        - event
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionEvent"
+        "204":
+          description: No Content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventRequest"
+      security:
+        - csrfHeader: []
+          csrfCookie: []
+        - bearerAuth: []
+          csrfHeader: []
+          csrfCookie: []
+        - guestSessionCookie: []
           csrfHeader: []
           csrfCookie: []
   /modals:
@@ -1540,35 +1540,9 @@ paths:
             type: integer
       security:
         - bearerAuth: []
-  /admin/batches/latest:
+  /admin/audits:
     get:
-      summary: Admin latest batch run
-      tags:
-        - admin-batches
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BatchRun"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: job_name
-          in: query
-          required: false
-          schema:
-            type: string
-      security:
-        - bearerAuth: []
-  /admin/audit-logs:
-    get:
-      summary: Admin list audit logs
+      summary: Admin list audits
       tags:
         - admin-audit
       responses:
@@ -1641,61 +1615,6 @@ paths:
           required: false
           schema:
             type: integer
-      security:
-        - bearerAuth: []
-  /admin/audit-logs/{id}:
-    get:
-      summary: Admin get audit log
-      tags:
-        - admin-audit
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuditLog"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      security:
-        - bearerAuth: []
-  /admin/audit-logs/request/{request_id}:
-    get:
-      summary: Admin list audit logs by request id
-      tags:
-        - admin-audit
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/AuditLog"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      parameters:
-        - name: request_id
-          in: path
-          required: true
-          schema:
-            type: string
       security:
         - bearerAuth: []
   /admin/cleanup/expired:
