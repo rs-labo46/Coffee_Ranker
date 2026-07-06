@@ -175,14 +175,25 @@ describe("api/client", () => {
     );
   });
   //認証エラー
-  it("getRatingは404だけnullに変換し、それ以外の認証エラーは判定できる", async () => {
+  it("getRatingは404だけnullに変換し、401だけ認証エラーとして判定する", async () => {
     const fetchMock = vi.fn(
-      async (): Promise<Response> =>
-        jsonResponse(
+      async (input: RequestInfo | URL): Promise<Response> => {
+        const path = String(input).replace("http://localhost:8080", "");
+
+        if (path === "/ratings/100") {
+          return jsonResponse(
+            { code: "not_found", message: "not found" },
+            { status: 404 },
+          );
+        }
+
+        return jsonResponse(
           { code: "not_found", message: "not found" },
           { status: 404 },
-        ),
+        );
+      },
     );
+
     vi.stubGlobal("fetch", fetchMock);
 
     const rating = await getRating(100);
@@ -192,10 +203,11 @@ describe("api/client", () => {
 
     expect(rating).toBeNull();
     expect(isAuthError(unauthorized)).toBe(true);
-    expect(isAuthError(forbidden)).toBe(true);
+    expect(isAuthError(forbidden)).toBe(false);
     expect(isAuthError(validation)).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchPath(fetchMock.mock.calls[0])).toBe("/ratings/100");
   });
-
   it("stableSearchHashは同じ検索条件なら同じ値を返し、主要条件が変われば変わる", () => {
     const base = {
       q: " Ethiopia ",
