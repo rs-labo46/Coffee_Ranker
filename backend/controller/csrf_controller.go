@@ -37,7 +37,7 @@ func (h *CSRFController) Issue(c echo.Context) error {
 		Expires:  expires,
 		HttpOnly: false,
 		Secure:   h.cookies.Secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: h.cookies.SameSite,
 	})
 
 	return c.JSON(http.StatusOK, CSRFResponse{Token: token})

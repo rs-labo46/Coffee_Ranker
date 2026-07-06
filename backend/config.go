@@ -19,6 +19,7 @@ type appConfig struct {
 	InterestProfileTTL time.Duration
 	CookieSecure       bool
 	CookieDomain       string
+	CookieSameSite     string
 	IPHashSecret       string
 	FrontendOrigins    []string
 	BodyLimitBytes     int64
@@ -39,6 +40,7 @@ func loadAppConfig() appConfig {
 		InterestProfileTTL: envDuration("INTEREST_PROFILE_TTL", 30*24*time.Hour),
 		CookieSecure:       envBool("COOKIE_SECURE", false),
 		CookieDomain:       env("COOKIE_DOMAIN", ""),
+		CookieSameSite:     env("COOKIE_SAMESITE", "lax"),
 		IPHashSecret:       env("IP_HASH_SECRET", env("JWT_SECRET", "")),
 		FrontendOrigins:    envList("FE_URL", []string{"http://localhost:3000"}),
 		BodyLimitBytes:     envInt64("BODY_LIMIT_BYTES", 1<<20),

@@ -105,9 +105,12 @@ func main() {
 	adminAuditUsecase := usecase.NewAdminAuditUsecase(auditLogRepository)
 	rateLimitUsecase := usecase.NewRateLimitUsecase(rateLimitRepository)
 
+	cookieSameSite := parseSameSite(cfg.CookieSameSite)
+
 	cookieConfig := controller.CookieConfig{
 		Secure:          cfg.CookieSecure,
 		Domain:          cfg.CookieDomain,
+		SameSite:        cookieSameSite,
 		RefreshTokenTTL: cfg.RefreshTokenTTL,
 		GuestSessionTTL: cfg.GuestSessionTTL,
 	}
@@ -137,17 +140,18 @@ func main() {
 			AdminAudit:     controller.NewAdminAuditController(adminAuditUsecase, validator.NewAdminAuditValidator()),
 		},
 		router.Middlewares{
-			Recover:                 middleware.RecoverMiddleware(logger),
-			RequestID:               middleware.RequestIDMiddleware(),
-			ClientIPHash:            middleware.ClientIPHashMiddleware(cfg.IPHashSecret),
-			SecureHeaders:           middleware.SecureHeadersMiddleware(),
-			CORS:                    middleware.CORSMiddleware(middleware.CORSConfig{AllowOrigins: cfg.FrontendOrigins, AllowCredentials: true}),
-			BodyLimit:               middleware.BodyLimitMiddleware(cfg.BodyLimitBytes),
-			AccessLog:               middleware.AccessLogMiddleware(logger),
-			Auth:                    middleware.AuthMiddleware(tokenManager),
-			OptionalAuth:            middleware.OptionalAuthMiddleware(tokenManager),
-			Admin:                   middleware.AdminMiddleware(),
-			GuestSession:            middleware.GuestSessionMiddleware(guestSessionUsecase, middleware.GuestSessionCookieConfig{Name: controller.GuestSessionCookieName, MaxAge: cfg.GuestSessionTTL, Secure: cfg.CookieSecure, SameSite: http.SameSiteLaxMode}),
+			Recover:       middleware.RecoverMiddleware(logger),
+			RequestID:     middleware.RequestIDMiddleware(),
+			ClientIPHash:  middleware.ClientIPHashMiddleware(cfg.IPHashSecret),
+			SecureHeaders: middleware.SecureHeadersMiddleware(),
+			CORS:          middleware.CORSMiddleware(middleware.CORSConfig{AllowOrigins: cfg.FrontendOrigins, AllowCredentials: true}),
+			BodyLimit:     middleware.BodyLimitMiddleware(cfg.BodyLimitBytes),
+			AccessLog:     middleware.AccessLogMiddleware(logger),
+			Auth:          middleware.AuthMiddleware(tokenManager),
+			OptionalAuth:  middleware.OptionalAuthMiddleware(tokenManager),
+			Admin:         middleware.AdminMiddleware(),
+			GuestSession: middleware.GuestSessionMiddleware(guestSessionUsecase,
+				middleware.GuestSessionCookieConfig{Name: controller.GuestSessionCookieName, MaxAge: cfg.GuestSessionTTL, Secure: cfg.CookieSecure, SameSite: cookieSameSite}),
 			Actor:                   middleware.ActorMiddleware(),
 			CSRF:                    middleware.CSRFMiddleware(),
 			RateLimitPublicRead:     middleware.RateLimitMiddleware(rateLimitUsecase, middleware.RateLimitPublicRead),
@@ -184,5 +188,16 @@ func main() {
 	defer cancelShutdown()
 	if err := e.Shutdown(shutdownCtx); err != nil {
 		e.Logger.Fatal(err)
+	}
+}
+
+func parseSameSite(value string) http.SameSite {
+	switch value {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
 	}
 }

@@ -28,6 +28,7 @@ const (
 type CookieConfig struct {
 	Secure          bool
 	Domain          string
+	SameSite        http.SameSite
 	RefreshTokenTTL time.Duration
 	GuestSessionTTL time.Duration
 }
@@ -199,7 +200,7 @@ func setRefreshCookie(c echo.Context, cfg CookieConfig, token string) {
 	if maxAge <= 0 {
 		maxAge = int((14 * 24 * time.Hour).Seconds())
 	}
-	cookie := &http.Cookie{Name: RefreshTokenCookieName, Value: token, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: http.SameSiteStrictMode}
+	cookie := &http.Cookie{Name: RefreshTokenCookieName, Value: token, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: cfg.SameSite}
 	c.SetCookie(cookie)
 }
 
@@ -210,7 +211,7 @@ func setGuestSessionCookie(c echo.Context, cfg CookieConfig, sessionKey string) 
 	if maxAge <= 0 {
 		maxAge = int((7 * 24 * time.Hour).Seconds())
 	}
-	cookie := &http.Cookie{Name: GuestSessionCookieName, Value: sessionKey, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: http.SameSiteLaxMode}
+	cookie := &http.Cookie{Name: GuestSessionCookieName, Value: sessionKey, Path: "/", Domain: cfg.Domain, MaxAge: maxAge, HttpOnly: true, Secure: cfg.Secure, SameSite: cfg.SameSite}
 	c.SetCookie(cookie)
 	c.Response().Header().Set(GuestSessionHeaderName, sessionKey)
 }
@@ -225,7 +226,7 @@ func clearAuthCookies(c echo.Context, cfg CookieConfig) {
 // 指定Cookieを期限切れにして削除。
 // Cookie削除処理を共通化し、設定漏れを防ぐ。
 func clearCookie(c echo.Context, cfg CookieConfig, name string, httpOnly bool) {
-	c.SetCookie(&http.Cookie{Name: name, Value: "", Path: "/", Domain: cfg.Domain, MaxAge: -1, HttpOnly: httpOnly, Secure: cfg.Secure, SameSite: http.SameSiteStrictMode})
+	c.SetCookie(&http.Cookie{Name: name, Value: "", Path: "/", Domain: cfg.Domain, MaxAge: -1, HttpOnly: httpOnly, Secure: cfg.Secure, SameSite: cfg.SameSite})
 }
 
 // refresh_token Cookieから生RefreshTokenを取り出す。
