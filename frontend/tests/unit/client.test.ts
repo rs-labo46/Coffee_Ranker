@@ -209,7 +209,6 @@ describe("api/client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchPath(fetchMock.mock.calls[0])).toBe("/ratings/100");
   });
-
   it("stableSearchHashは同じ検索条件なら同じ値を返し、主要条件が変われば変わる", () => {
     const base = {
       q: " Ethiopia ",
