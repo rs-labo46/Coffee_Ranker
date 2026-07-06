@@ -1,18 +1,20 @@
-name: CI/CD
+name: CI
 
 on:
   pull_request:
     branches:
       - main
+      - develop
   push:
     branches:
       - main
+      - develop
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-cd-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -64,9 +66,10 @@ jobs:
       REDIS_PORT: 6379
       REDIS_DB: 0
       REDIS_PASSWORD: ""
+      TEST_REDIS_ADDR: localhost:6379
 
-      JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-      IP_HASH_SECRET: ${{ secrets.TEST_JWT_SECRET }}
+      JWT_SECRET: ci-test-jwt-secret-value-for-github-actions-only-do-not-use-in-production
+      IP_HASH_SECRET: ci-test-ip-hash-secret-value-for-github-actions-only-do-not-use-in-production
       FE_URL: http://localhost:3000
 
       SEED_ADMIN_EMAIL: admin@test.com
@@ -84,6 +87,17 @@ jobs:
 
       - name: Download Go modules
         run: go mod download
+
+      - name: Check Go format
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Run Go vet
+        run: go vet ./...
 
       - name: Run Go tests
         run: go test ./... -count=1
@@ -121,52 +135,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-  deploy-backend:
-    name: Deploy backend to Render
-    runs-on: ubuntu-latest
-    needs:
-      - backend-test
-      - frontend-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Trigger Render deploy
-        run: |
-          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-
-  deploy-frontend:
-    name: Deploy frontend to Vercel
-    runs-on: ubuntu-latest
-    needs:
-      - deploy-backend
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    defaults:
-      run:
-        working-directory: frontend
-
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Pull Vercel production environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build Vercel production artifact
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy Vercel production artifact
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
