@@ -174,16 +174,25 @@ describe("api/client", () => {
       JSON.stringify({ key: "rate:login:test" }),
     );
   });
+
+  //認証エラー
   it("getRatingは404だけnullに変換し、401だけ認証エラーとして判定する", async () => {
     const fetchMock = vi.fn(
-      async (
-        _input: RequestInfo | URL,
-        _init?: RequestInit,
-      ): Promise<Response> =>
-        jsonResponse(
+      async (input: RequestInfo | URL): Promise<Response> => {
+        const path = String(input).replace("http://localhost:8080", "");
+
+        if (path === "/ratings/100") {
+          return jsonResponse(
+            { code: "not_found", message: "not found" },
+            { status: 404 },
+          );
+        }
+
+        return jsonResponse(
           { code: "not_found", message: "not found" },
           { status: 404 },
-        ),
+        );
+      },
     );
 
     vi.stubGlobal("fetch", fetchMock);
