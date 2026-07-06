@@ -175,16 +175,30 @@ describe("api/client", () => {
     );
   });
   it("getRatingは404だけnullに変換し、401だけ認証エラーとして判定する", async () => {
-    const unauthorized = new ApiError(401, "unauthorized", "unauthorized");
-    const forbidden = new ApiError(403, "forbidden", "forbidden");
-    const validation = new ApiError(400, "invalid", "invalid_input");
+    const fetchMock = vi.fn(
+      async (
+        _input: RequestInfo | URL,
+        _init?: RequestInit,
+      ): Promise<Response> =>
+        jsonResponse(
+          { code: "not_found", message: "not found" },
+          { status: 404 },
+        ),
+    );
 
-    const rating = await getRating(1);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rating = await getRating(100);
+    const unauthorized = new ApiError(401, "unauthorized", "認証が必要です");
+    const forbidden = new ApiError(403, "forbidden", "操作不可");
+    const validation = new ApiError(400, "invalid_input", "入力エラー");
 
     expect(rating).toBeNull();
     expect(isAuthError(unauthorized)).toBe(true);
     expect(isAuthError(forbidden)).toBe(false);
     expect(isAuthError(validation)).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchPath(fetchMock.mock.calls[0])).toBe("/ratings/100");
   });
 
   it("stableSearchHashは同じ検索条件なら同じ値を返し、主要条件が変われば変わる", () => {
