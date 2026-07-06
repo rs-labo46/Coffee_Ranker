@@ -21,6 +21,8 @@ func NewCSRFController(cookies CookieConfig) *CSRFController {
 	return &CSRFController{cookies: cookies}
 }
 
+// Double Submit Cookie用のCSRF tokenを発行。
+// refresh/logoutのようなCookie認証系APIで、CookieとHeaderの一致確認に使う。
 func (h *CSRFController) Issue(c echo.Context) error {
 	token, err := newCSRFToken()
 	if err != nil {
@@ -43,10 +45,13 @@ func (h *CSRFController) Issue(c echo.Context) error {
 	return c.JSON(http.StatusOK, CSRFResponse{Token: token})
 }
 
+// 推測困難なCSRF tokenを生成。
+// RawURLEncodingを使い、Cookie/Headerで扱いやすい文字列にする。
 func newCSRFToken() (string, error) {
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
+
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }

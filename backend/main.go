@@ -15,7 +15,6 @@ import (
 	"coffee-ranker/migrate"
 	"coffee-ranker/repository"
 	"coffee-ranker/router"
-
 	"coffee-ranker/usecase"
 	"coffee-ranker/validator"
 )
@@ -29,6 +28,7 @@ func main() {
 			log.Println(err)
 		}
 	}()
+
 	database, err := db.NewDB()
 	if err != nil {
 		log.Fatal(err)
@@ -45,6 +45,7 @@ func main() {
 	if err := migrate.Seed(database); err != nil {
 		log.Fatal(err)
 	}
+
 	userRepository := repository.NewUserRepository(database)
 	refreshTokenRepository := repository.NewRefreshTokenRepository(database)
 	guestSessionRepository := repository.NewGuestSessionRepository(database)
@@ -81,8 +82,20 @@ func main() {
 
 	guestKeyManager := repository.NewGuestKeyManager()
 
-	authUsecase := usecase.NewAuthUsecase(userRepository, refreshTokenRepository, auditLogRepository, txManager, passwordHasher, tokenManager, cfg.RefreshTokenTTL)
-	guestSessionUsecase := usecase.NewGuestSessionUsecase(guestSessionRepository, guestKeyManager, cfg.GuestSessionTTL)
+	authUsecase := usecase.NewAuthUsecase(
+		userRepository,
+		refreshTokenRepository,
+		auditLogRepository,
+		txManager,
+		passwordHasher,
+		tokenManager,
+		cfg.RefreshTokenTTL,
+	)
+	guestSessionUsecase := usecase.NewGuestSessionUsecase(
+		guestSessionRepository,
+		guestKeyManager,
+		cfg.GuestSessionTTL,
+	)
 	beanUsecase := usecase.NewBeanUsecase(beanRepository, beanArticleRepository)
 	articleUsecase := usecase.NewArticleUsecase(articleRepository, beanArticleRepository)
 	searchUsecase := usecase.NewSearchUsecase(beanRepository, articleRepository)
@@ -90,18 +103,61 @@ func main() {
 	savedItemUsecase := usecase.NewSavedItemUsecase(savedItemRepository, rankTargetRepository, actionEventRepository)
 	ratingUsecase := usecase.NewRatingUsecase(ratingRepository, rankTargetRepository, actionEventRepository)
 	rankingUsecase := usecase.NewRankingUsecase(contentMetricRepository, beanRepository, articleRepository)
-	recommendationUsecase := usecase.NewRecommendationUsecase(contentMetricRepository, interestProfileRepository, savedItemRepository, actionEventRepository, beanRepository, articleRepository)
-	modalUsecase := usecase.NewModalUsecaseWithMetrics(modalDisplayLogRepository, modalBlockLogRepository, rankTargetRepository, contentMetricRepository, beanRepository, articleRepository, savedItemRepository, actionEventRepository, modalSuppressionRepository)
-	rankingBatchUsecase := usecase.NewRankingBatchUsecase(actionEventRepository, batchRunRepository, batchLockRepository, auditLogRepository, txManager)
-	interestBatchUsecase := usecase.NewInterestBatchUsecase(actionEventRepository, interestProfileRepository, batchRunRepository, batchLockRepository, auditLogRepository, cfg.InterestProfileTTL)
-
-	cleanupUsecase := usecase.NewCleanupUsecase(refreshTokenRepository, guestSessionRepository, interestProfileRepository)
+	recommendationUsecase := usecase.NewRecommendationUsecase(
+		contentMetricRepository,
+		interestProfileRepository,
+		savedItemRepository,
+		actionEventRepository,
+		beanRepository,
+		articleRepository,
+	)
+	modalUsecase := usecase.NewModalUsecaseWithMetrics(
+		modalDisplayLogRepository,
+		modalBlockLogRepository,
+		rankTargetRepository,
+		contentMetricRepository,
+		beanRepository,
+		articleRepository,
+		savedItemRepository,
+		actionEventRepository,
+		modalSuppressionRepository,
+	)
+	rankingBatchUsecase := usecase.NewRankingBatchUsecase(
+		actionEventRepository,
+		batchRunRepository,
+		batchLockRepository,
+		auditLogRepository,
+		txManager,
+	)
+	interestBatchUsecase := usecase.NewInterestBatchUsecase(
+		actionEventRepository,
+		interestProfileRepository,
+		batchRunRepository,
+		batchLockRepository,
+		auditLogRepository,
+		cfg.InterestProfileTTL,
+	)
+	cleanupUsecase := usecase.NewCleanupUsecase(
+		refreshTokenRepository,
+		guestSessionRepository,
+		interestProfileRepository,
+	)
 
 	adminRateLimitUsecase := usecase.NewAdminRateLimitUsecase(rateLimitRepository, auditLogRepository)
 	adminBeanUsecase := usecase.NewAdminBeanUsecase(beanRepository, auditLogRepository, txManager)
 	adminArticleUsecase := usecase.NewAdminArticleUsecase(articleRepository, auditLogRepository, txManager)
-	adminRelationUsecase := usecase.NewAdminRelationUsecase(beanRepository, articleRepository, beanArticleRepository, auditLogRepository, txManager)
-	adminBatchUsecase := usecase.NewAdminBatchUsecase(batchRunRepository, rankingBatchUsecase, interestBatchUsecase)
+	adminRelationUsecase := usecase.NewAdminRelationUsecase(
+		beanRepository,
+		articleRepository,
+		beanArticleRepository,
+		auditLogRepository,
+		txManager,
+	)
+	adminBatchUsecase := usecase.NewAdminBatchUsecase(
+		batchRunRepository,
+		rankingBatchUsecase,
+		interestBatchUsecase,
+	)
 	adminAuditUsecase := usecase.NewAdminAuditUsecase(auditLogRepository)
 	rateLimitUsecase := usecase.NewRateLimitUsecase(rateLimitRepository)
 
@@ -147,14 +203,24 @@ func main() {
 			RequestID:     middleware.RequestIDMiddleware(),
 			ClientIPHash:  middleware.ClientIPHashMiddleware(cfg.IPHashSecret),
 			SecureHeaders: middleware.SecureHeadersMiddleware(),
-			CORS:          middleware.CORSMiddleware(middleware.CORSConfig{AllowOrigins: cfg.FrontendOrigins, AllowCredentials: true}),
-			BodyLimit:     middleware.BodyLimitMiddleware(cfg.BodyLimitBytes),
-			AccessLog:     middleware.AccessLogMiddleware(logger),
-			Auth:          middleware.AuthMiddleware(tokenManager),
-			OptionalAuth:  middleware.OptionalAuthMiddleware(tokenManager),
-			Admin:         middleware.AdminMiddleware(),
-			GuestSession: middleware.GuestSessionMiddleware(guestSessionUsecase,
-				middleware.GuestSessionCookieConfig{Name: controller.GuestSessionCookieName, MaxAge: cfg.GuestSessionTTL, Secure: cfg.CookieSecure, SameSite: cookieSameSite}),
+			CORS: middleware.CORSMiddleware(middleware.CORSConfig{
+				AllowOrigins:     cfg.FrontendOrigins,
+				AllowCredentials: true,
+			}),
+			BodyLimit:    middleware.BodyLimitMiddleware(cfg.BodyLimitBytes),
+			AccessLog:    middleware.AccessLogMiddleware(logger),
+			Auth:         middleware.AuthMiddleware(tokenManager),
+			OptionalAuth: middleware.OptionalAuthMiddleware(tokenManager),
+			Admin:        middleware.AdminMiddleware(),
+			GuestSession: middleware.GuestSessionMiddleware(
+				guestSessionUsecase,
+				middleware.GuestSessionCookieConfig{
+					Name:     controller.GuestSessionCookieName,
+					MaxAge:   cfg.GuestSessionTTL,
+					Secure:   cfg.CookieSecure,
+					SameSite: cookieSameSite,
+				},
+			),
 			Actor:                   middleware.ActorMiddleware(),
 			CSRF:                    middleware.CSRFMiddleware(),
 			RateLimitPublicRead:     middleware.RateLimitMiddleware(rateLimitUsecase, middleware.RateLimitPublicRead),

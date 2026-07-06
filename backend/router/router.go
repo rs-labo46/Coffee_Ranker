@@ -122,69 +122,73 @@ func registerAuthRoutes(e *echo.Echo, c Controllers, mw Middlewares) {
 }
 
 func registerUserRoutes(e *echo.Echo, c Controllers, mw Middlewares) {
-	user := []echo.MiddlewareFunc{mw.Auth, syncControllerContext(), mw.RateLimitUser}
-	userWithCSRF := []echo.MiddlewareFunc{mw.Auth, syncControllerContext(), mw.RateLimitUser, mw.CSRF}
+	user := []echo.MiddlewareFunc{
+		mw.Auth,
+		syncControllerContext(),
+		mw.RateLimitUser,
+	}
 
 	e.GET("/articles/:slug", c.Content.GetArticleBySlug, user...)
 	e.GET("/articles/id/:id", c.Content.GetArticleByID, user...)
 	e.GET("/articles/id/:id/beans", c.Content.RelatedBeans, user...)
 
 	e.GET("/saved", c.Saved.List, user...)
-	e.POST("/saved", c.Saved.Save, userWithCSRF...)
+	e.POST("/saved", c.Saved.Save, user...)
 	e.GET("/saved/:rank_target_id", c.Saved.Exists, user...)
-	e.DELETE("/saved/:rank_target_id", c.Saved.Remove, userWithCSRF...)
+	e.DELETE("/saved/:rank_target_id", c.Saved.Remove, user...)
 
 	e.GET("/ratings", c.Rating.List, user...)
-	e.POST("/ratings", c.Rating.Rate, userWithCSRF...)
+	e.POST("/ratings", c.Rating.Rate, user...)
 	e.GET("/ratings/:rank_target_id", c.Rating.Get, user...)
-	e.DELETE("/ratings/:rank_target_id", c.Rating.Delete, userWithCSRF...)
+	e.DELETE("/ratings/:rank_target_id", c.Rating.Delete, user...)
 }
 
 func registerActorRoutes(e *echo.Echo, c Controllers, mw Middlewares) {
-	actor := []echo.MiddlewareFunc{mw.OptionalAuth, mw.GuestSession, mw.Actor, syncControllerContext()}
+	actor := []echo.MiddlewareFunc{
+		mw.OptionalAuth,
+		mw.GuestSession,
+		mw.Actor,
+		syncControllerContext(),
+	}
 
 	e.GET("/search/beans", c.Search.SearchBeans, appendMiddlewares(actor, mw.RateLimitSearch)...)
 	e.GET("/search/articles", c.Search.SearchArticles, appendMiddlewares(actor, mw.RateLimitSearch)...)
 	e.GET("/recommendations", c.Recommendation.List, appendMiddlewares(actor, mw.RateLimitRecommendation)...)
-	e.POST("/events", c.Event.Record, appendMiddlewares(actor, mw.RateLimitEvent, mw.CSRF)...)
-	e.POST("/modals", c.Modal.Show, appendMiddlewares(actor, mw.RateLimitModal, mw.CSRF)...)
-	e.POST("/modals/click", c.Modal.Click, appendMiddlewares(actor, mw.RateLimitModal, mw.CSRF)...)
-	e.POST("/modals/close", c.Modal.Close, appendMiddlewares(actor, mw.RateLimitModal, mw.CSRF)...)
+	e.POST("/events", c.Event.Record, appendMiddlewares(actor, mw.RateLimitEvent)...)
+	e.POST("/modals", c.Modal.Show, appendMiddlewares(actor, mw.RateLimitModal)...)
+	e.POST("/modals/click", c.Modal.Click, appendMiddlewares(actor, mw.RateLimitModal)...)
+	e.POST("/modals/close", c.Modal.Close, appendMiddlewares(actor, mw.RateLimitModal)...)
 }
 
 func registerAdminRoutes(e *echo.Echo, c Controllers, mw Middlewares) {
 	admin := e.Group("/admin", mw.Auth, mw.Admin, syncControllerContext())
-	adminWithCSRF := []echo.MiddlewareFunc{mw.RateLimitAdmin, mw.CSRF}
-	adminBatchWithCSRF := []echo.MiddlewareFunc{mw.RateLimitAdminBatch, mw.CSRF}
+	adminWrite := []echo.MiddlewareFunc{mw.RateLimitAdmin}
+	adminBatchWrite := []echo.MiddlewareFunc{mw.RateLimitAdminBatch}
 
 	admin.GET("/beans", c.AdminBean.List, mw.RateLimitAdmin)
-	admin.POST("/beans", c.AdminBean.Create, adminWithCSRF...)
-	admin.PUT("/beans/:id", c.AdminBean.Update, adminWithCSRF...)
-	admin.PATCH("/beans/:id/publish", c.AdminBean.Publish, adminWithCSRF...)
-	admin.PATCH("/beans/:id/unpublish", c.AdminBean.Unpublish, adminWithCSRF...)
+	admin.POST("/beans", c.AdminBean.Create, adminWrite...)
+	admin.PUT("/beans/:id", c.AdminBean.Update, adminWrite...)
+	admin.PATCH("/beans/:id/publish", c.AdminBean.Publish, adminWrite...)
+	admin.PATCH("/beans/:id/unpublish", c.AdminBean.Unpublish, adminWrite...)
 
 	admin.GET("/articles", c.AdminArticle.List, mw.RateLimitAdmin)
-	admin.POST("/articles", c.AdminArticle.Create, adminWithCSRF...)
-	admin.PUT("/articles/:id", c.AdminArticle.Update, adminWithCSRF...)
-	admin.PATCH("/articles/:id/publish", c.AdminArticle.Publish, adminWithCSRF...)
-	admin.PATCH("/articles/:id/unpublish", c.AdminArticle.Unpublish, adminWithCSRF...)
+	admin.POST("/articles", c.AdminArticle.Create, adminWrite...)
+	admin.PUT("/articles/:id", c.AdminArticle.Update, adminWrite...)
+	admin.PATCH("/articles/:id/publish", c.AdminArticle.Publish, adminWrite...)
+	admin.PATCH("/articles/:id/unpublish", c.AdminArticle.Unpublish, adminWrite...)
 
-	admin.POST("/bean-articles", c.AdminRelation.Create, adminWithCSRF...)
-	admin.DELETE("/bean-articles/:bean_id/:article_id", c.AdminRelation.Delete, adminWithCSRF...)
-	admin.PUT("/beans/:bean_id/articles", c.AdminRelation.ReplaceByBeanID, adminWithCSRF...)
-	admin.PATCH("/beans/:bean_id/articles/order", c.AdminRelation.UpdateDisplayOrder, adminWithCSRF...)
+	admin.POST("/bean-articles", c.AdminRelation.Create, adminWrite...)
+	admin.DELETE("/bean-articles/:bean_id/:article_id", c.AdminRelation.Delete, adminWrite...)
+	admin.PUT("/beans/:bean_id/articles", c.AdminRelation.ReplaceByBeanID, adminWrite...)
+	admin.PATCH("/beans/:bean_id/articles/order", c.AdminRelation.UpdateDisplayOrder, adminWrite...)
 
-	admin.POST("/batches/ranking", c.AdminBatch.RunRanking, adminBatchWithCSRF...)
-	admin.POST("/batches/interest", c.AdminBatch.RunInterest, adminBatchWithCSRF...)
+	admin.POST("/batches/ranking", c.AdminBatch.RunRanking, adminBatchWrite...)
+	admin.POST("/batches/interest", c.AdminBatch.RunInterest, adminBatchWrite...)
 	admin.GET("/batches", c.AdminBatch.ListRuns, mw.RateLimitAdmin)
-	admin.GET("/batches/latest", c.AdminBatch.Latest, mw.RateLimitAdmin)
 
-	admin.GET("/audit-logs", c.AdminAudit.List, mw.RateLimitAdmin)
-	admin.GET("/audit-logs/:id", c.AdminAudit.FindByID, mw.RateLimitAdmin)
-	admin.GET("/audit-logs/request/:request_id", c.AdminAudit.ListByRequestID, mw.RateLimitAdmin)
-
-	admin.POST("/cleanup/expired", c.Cleanup.DeleteExpired, adminBatchWithCSRF...)
-	admin.POST("/rate-limits/reset", c.AdminRateLimit.Reset, adminWithCSRF...)
+	admin.GET("/audits", c.AdminAudit.List, mw.RateLimitAdmin)
+	admin.POST("/cleanup/expired", c.Cleanup.DeleteExpired, adminBatchWrite...)
+	admin.POST("/rate-limits/reset", c.AdminRateLimit.Reset, adminWrite...)
 }
 
 func syncControllerContext() echo.MiddlewareFunc {

@@ -78,9 +78,7 @@ export function clearAuthTokens(): void {
 }
 
 export function isAuthError(error: unknown): boolean {
-  return (
-    error instanceof ApiError && (error.status === 401 || error.status === 403)
-  );
+  return error instanceof ApiError && error.status === 401;
 }
 
 async function parseError(response: Response): Promise<ApiError> {
