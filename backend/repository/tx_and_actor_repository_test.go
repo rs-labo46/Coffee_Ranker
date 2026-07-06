@@ -22,7 +22,7 @@ func TestActionEventRepository_ActorFilterFailClosedAndLastSearchHash(t *testing
 	guest := createTestGuestSession(t, db, "actor")
 	// ActionEventRepositoryを作成する。
 	repo := NewActionEventRepository(db)
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 
 	// 古い検索条件hashと新しい検索条件hashを用意する。
 	oldHash := "old-search-hash"
@@ -155,7 +155,7 @@ func TestModalDisplayLogRepository_ActorScopedUpdate(t *testing.T) {
 
 	// ModalDisplayLogRepositoryを作成する。
 	repo := NewModalDisplayLogRepository(db)
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 
 	// ownerのモーダル表示ログを作成する。
 	log := model.ModalDisplayLog{
@@ -229,7 +229,7 @@ func createTestGuestSession(t *testing.T, db *gorm.DB, suffix string) model.Gues
 	t.Helper()
 
 	// テスト内で使う基準時刻を用意する。
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 
 	// 有効なGuestSessionを作る。
 	session := model.GuestSession{

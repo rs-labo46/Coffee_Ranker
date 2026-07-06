@@ -195,7 +195,7 @@ func TestRefreshTokenRepository_MarkUsedOnlyOnceAndPreloadUser(t *testing.T) {
 	repo := NewRefreshTokenRepository(db)
 
 	// テスト内で使う基準時刻。
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 
 	// 使用済みに古いRefreshToken。
 	oldToken := model.RefreshToken{
@@ -280,7 +280,7 @@ func TestRefreshTokenRepository_RevokeFamilyAndDeleteExpired(t *testing.T) {
 	// RefreshTokenRepositoryを作成。
 	repo := NewRefreshTokenRepository(db)
 
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 
 	// 同じfamily_idのtokenを2件、期限切れtokenを1件用意。
 	tokens := []model.RefreshToken{
@@ -341,7 +341,7 @@ func TestGuestSessionRepository_TouchAndDeleteExpired(t *testing.T) {
 	// GuestSessionRepositoryを作成。
 	repo := NewGuestSessionRepository(db)
 
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 
 	// 有効なGuestSession。
 	active := model.GuestSession{

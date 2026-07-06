@@ -45,13 +45,16 @@ func newRepositoryTestRedis(t *testing.T) *redis.Client {
 	}
 
 	// このテスト専用のRedis key prefixを作る。
-	// テストごとにkeyを分けることで、他のテスト結果と混ざらないように。
+	// modal系のkeyはprefixがkey先頭ではなく途中に入るため、前方一致ではなく部分一致で掃除する。
 	prefix := testKeyPrefix(t)
+	pattern := "*" + prefix + "*"
 
-	// テスト終了時に、このテストで作ったRedis keyだけ削除。
-	// prefix + "*" に一致keyを消してから、Redis clientを閉じる。
+	// 前回失敗したテストのRedis keyが残っていても、今回の開始状態に影響しないように先に削除。
+	cleanupRedisKeys(context.Background(), client, pattern)
+
+	// テスト終了時にも、このテストで作ったRedis keyを削除。
 	t.Cleanup(func() {
-		cleanupRedisKeys(context.Background(), client, prefix+"*")
+		cleanupRedisKeys(context.Background(), client, pattern)
 		_ = client.Close()
 	})
 
